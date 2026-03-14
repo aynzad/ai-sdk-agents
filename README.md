@@ -1,6 +1,14 @@
-# ai-sdk-agents
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/public/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/public/logo-light.svg">
+    <img alt="AI SDK Agents" src="docs/public/logo-light.svg" width="300">
+  </picture>
+</p>
 
-Multi-agent orchestration for [Vercel AI SDK](https://ai-sdk.dev) — handoffs, guardrails, and tracing.
+<p align="center">
+  Multi-agent orchestration for <a href="https://ai-sdk.dev">Vercel AI SDK</a> — handoffs, guardrails, and tracing.
+</p>
 
 The missing middle between raw AI SDK and full agent frameworks.
 

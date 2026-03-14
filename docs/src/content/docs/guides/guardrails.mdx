@@ -1,0 +1,171 @@
+---
+title: Guardrails
+description: Validate inputs and outputs with tripwire-based halting.
+---
+
+Guardrails validate agent inputs and outputs. When any guardrail trips, execution stops immediately by throwing `GuardrailTripwiredError`. Multiple guardrails run **in parallel** for performance.
+
+## Input Guardrails
+
+Run before the agent processes the message:
+
+```ts
+import { Agent, Runner, guardrail } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const noHarmful = guardrail({
+  name: "no-harmful-content",
+  execute: async (ctx, input) => {
+    const texts = input.messages.map((m) =>
+      typeof m.content === "string" ? m.content : ""
+    );
+    const hasHarmful = texts.some((t) => t.includes("hack"));
+    return {
+      tripwired: hasHarmful,
+      reason: hasHarmful ? "Harmful content detected" : undefined,
+    };
+  },
+});
+
+const agent = new Agent({
+  name: "Safe",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+  inputGuardrails: [noHarmful],
+});
+
+try {
+  await Runner.run(agent, "How do I hack a computer?");
+} catch (err) {
+  // GuardrailTripwiredError: no-harmful-content tripped
+}
+```
+
+## Output Guardrails
+
+Run after the agent produces its final output:
+
+```ts
+const noSecrets = guardrail({
+  name: "no-secrets",
+  execute: async (ctx, input) => {
+    const texts = input.messages.map((m) =>
+      typeof m.content === "string" ? m.content : ""
+    );
+    const hasSecret = texts.some((t) => t.includes("API_KEY"));
+    return {
+      tripwired: hasSecret,
+      reason: hasSecret ? "Output contains secrets" : undefined,
+    };
+  },
+});
+
+const agent = new Agent({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+  outputGuardrails: [noSecrets],
+});
+```
+
+## Built-in Guardrails
+
+The library ships with common guardrails ready to use.
+
+### Keyword Guardrail
+
+Block messages containing specific keywords:
+
+```ts
+import { keywordGuardrail } from "@aynzad/ai-sdk-agents";
+
+const agent = new Agent({
+  name: "Safe",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+  inputGuardrails: [
+    keywordGuardrail({
+      blockedKeywords: ["hack", "exploit", "bypass"],
+      caseSensitive: false, // default
+    }),
+  ],
+});
+```
+
+### Max Length Guardrail
+
+Reject messages exceeding a character limit:
+
+```ts
+import { maxLengthGuardrail } from "@aynzad/ai-sdk-agents";
+
+const agent = new Agent({
+  name: "Bounded",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+  inputGuardrails: [maxLengthGuardrail({ maxLength: 5000 })],
+});
+```
+
+### Regex Guardrail
+
+Block messages matching a regular expression:
+
+```ts
+import { regexGuardrail } from "@aynzad/ai-sdk-agents";
+
+const agent = new Agent({
+  name: "NoPII",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+  inputGuardrails: [
+    regexGuardrail({
+      pattern: /\b\d{3}-\d{2}-\d{4}\b/,
+      reason: "Social Security Number detected in input",
+    }),
+  ],
+});
+```
+
+## LLM Guardrail
+
+Use an AI model to validate content:
+
+```ts
+import { llmGuardrail } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const contentPolicy = llmGuardrail({
+  name: "content-policy",
+  model: openai("gpt-4o-mini"),
+  promptBuilder: (ctx, input) => {
+    const text = input.messages
+      .map((m) => (typeof m.content === "string" ? m.content : ""))
+      .join("\n");
+    return `Does this text violate content policy? Answer YES or NO.\n\n${text}`;
+  },
+  tripWhen: (result) => result.toUpperCase().includes("YES"),
+});
+```
+
+If the LLM call fails (network error, etc.), the guardrail **trips** — safety-first design.
+
+## Guardrail Result
+
+Every guardrail's `execute` function returns a `GuardrailResult`:
+
+```ts
+interface GuardrailResult {
+  tripwired: boolean;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}
+```
+
+## Parallel Execution
+
+All guardrails for a scope (input or output) run in parallel via `Promise.allSettled`. The first tripwire wins. If a guardrail's `execute` function throws, it's treated as a tripwire for safety.
+
+## Tool Guardrails
+
+For per-tool validation, see [Tools — Guarded Tools](/ai-sdk-agents/guides/tools/#guarded-tools).

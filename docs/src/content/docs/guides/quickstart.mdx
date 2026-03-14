@@ -1,0 +1,131 @@
+---
+title: Quickstart
+description: Build your first agent with ai-sdk-agents in under 5 minutes.
+---
+
+## Installation
+
+Install the package along with its peer dependencies:
+
+```bash
+pnpm add @aynzad/ai-sdk-agents ai zod
+```
+
+You also need at least one AI SDK provider:
+
+```bash
+pnpm add @ai-sdk/openai
+```
+
+## Hello World
+
+Create a simple agent and run it:
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const agent = new Agent({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+});
+
+const result = await Runner.run(
+  agent,
+  "Write a haiku about recursion in programming."
+);
+
+console.log(result.output);
+// Code within the code,
+// Functions calling themselves,
+// Infinite loop's dance.
+```
+
+Make sure you set the `OPENAI_API_KEY` environment variable:
+
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+## Adding Tools
+
+Agents become powerful when you give them tools:
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+
+const agent = new Agent({
+  name: "WeatherBot",
+  model: openai("gpt-4o"),
+  instructions: "You help users check the weather.",
+  tools: {
+    getWeather: {
+      description: "Get the current weather for a city",
+      parameters: z.object({ city: z.string() }),
+      execute: async ({ city }) => `72°F and sunny in ${city}`,
+    },
+  },
+});
+
+const result = await Runner.run(agent, "What's the weather in Berlin?");
+console.log(result.output);
+```
+
+## Multi-Agent Handoffs
+
+Transfer conversation control between agents:
+
+```ts
+import { Agent, Runner, handoff } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const billingAgent = new Agent({
+  name: "Billing",
+  model: openai("gpt-4o"),
+  instructions: "You handle billing questions. Be concise.",
+});
+
+const triageAgent = new Agent({
+  name: "Triage",
+  model: openai("gpt-4o"),
+  instructions: "Route billing questions to the billing agent.",
+  handoffs: [billingAgent],
+});
+
+const result = await Runner.run(triageAgent, "I need help with my invoice.");
+console.log(result.agent); // "Billing"
+console.log(result.output);
+```
+
+## Streaming
+
+Get real-time token-by-token events:
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const agent = new Agent({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+});
+
+const stream = Runner.stream(agent, "Tell me a joke.");
+
+for await (const event of stream.events) {
+  if (event.type === "text_delta") {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+## Next Steps
+
+- [Agents](/ai-sdk-agents/guides/agents/) — Learn about agent configuration, dynamic instructions, and cloning
+- [Tools](/ai-sdk-agents/guides/tools/) — Function tools, agent-as-tool, and guarded tools
+- [Guardrails](/ai-sdk-agents/guides/guardrails/) — Input/output validation with tripwire-based halting
+- [Handoffs](/ai-sdk-agents/guides/handoffs/) — Multi-agent handoff system in depth

@@ -1,0 +1,143 @@
+---
+title: Running Agents
+description: Execute agents with Runner.run() — the core orchestration loop.
+---
+
+The `Runner` is the heart of the library. It orchestrates the full agent execution loop: invoke the model, check for final output or handoff or tool calls, execute and loop.
+
+## Basic Usage
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const agent = new Agent({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+});
+
+const result = await Runner.run(agent, "Hello!");
+console.log(result.output); // "Hello! How can I help you today?"
+```
+
+## Input Types
+
+`Runner.run()` accepts both string input and `CoreMessage[]`:
+
+```ts
+// String input (converted to a single user message)
+const result = await Runner.run(agent, "Hello!");
+
+// CoreMessage array for multi-turn conversations
+const result = await Runner.run(agent, [
+  { role: "user", content: "What is 2 + 2?" },
+  { role: "assistant", content: "4" },
+  { role: "user", content: "What about 3 + 3?" },
+]);
+```
+
+## Run Configuration
+
+Pass a `RunConfig` to customize execution:
+
+```ts
+const result = await Runner.run(agent, "Hello!", {
+  maxTurns: 5,            // Max agent turns (default: 10)
+  context: { userId: 1 }, // Typed context available in instructions/guardrails
+  signal: controller.signal, // AbortSignal for cancellation
+  model: openai("gpt-4o-mini"), // Override agent's model
+  hooks: { /* ... */ },   // Run-level lifecycle hooks
+  tracing: {
+    enabled: true,
+    traceId: "custom-id",
+    processors: [myProcessor],
+  },
+});
+```
+
+### Model Override
+
+The config model takes precedence over the agent's model:
+
+```ts
+const result = await Runner.run(agent, "Hello!", {
+  model: openai("gpt-4o-mini"), // Uses this instead of agent's model
+});
+```
+
+## Turn Management
+
+The Runner loops up to `maxTurns` times (default: 10). Each handoff counts as a turn. If the limit is exceeded, `MaxTurnsExceededError` is thrown:
+
+```ts
+import { MaxTurnsExceededError } from "@aynzad/ai-sdk-agents";
+
+try {
+  await Runner.run(agent, "Hello!", { maxTurns: 3 });
+} catch (err) {
+  if (err instanceof MaxTurnsExceededError) {
+    console.log(`Exceeded ${err.maxTurns} turns`);
+  }
+}
+```
+
+## Lifecycle Hooks
+
+Run-level hooks fire at key points during execution:
+
+```ts
+const result = await Runner.run(agent, "Hello!", {
+  hooks: {
+    onRunStart: (ctx) => console.log("Run started"),
+    onRunEnd: (ctx, result) => console.log("Run finished"),
+    onAgentStart: (ctx) => console.log(`Agent ${ctx.agent} started`),
+    onAgentEnd: (ctx, output) => console.log(`Agent ${ctx.agent} done`),
+    onHandoff: (ctx, from, to) => console.log(`${from} → ${to}`),
+    onGuardrailTripped: (ctx, result) =>
+      console.log(`Guardrail tripped: ${result.reason}`),
+  },
+});
+```
+
+Hook errors are swallowed — a buggy hook never crashes the agent run.
+
+### Agent Hooks vs Run Hooks
+
+- **Agent hooks** (`agent.config.hooks`) — fire for that specific agent
+- **Run hooks** (`config.hooks`) — fire for the entire run, across all agents
+
+Both can coexist. Agent hooks fire first.
+
+## Abort Signal
+
+Cancel a run using an `AbortSignal`:
+
+```ts
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+const result = await Runner.run(agent, "Write a novel.", {
+  signal: controller.signal,
+});
+```
+
+## The Orchestration Loop
+
+Here's what happens inside `Runner.run()`:
+
+1. **Initialize** — convert input, create messages array, set up tracing
+2. **Fire** `onRunStart`
+3. **Loop** (up to `maxTurns`):
+   1. Fire `onAgentStart`
+   2. Run **input guardrails** (throw if tripped)
+   3. Resolve instructions, build tools + handoff tools, resolve model
+   4. Call AI SDK `generateText()`
+   5. Accumulate usage tokens
+   6. Record tool call/result steps
+   7. **Check for handoffs** — if found, switch agent and continue loop
+   8. If no handoff — record message step, fire `onAgentEnd`
+   9. Run **output guardrails** (throw if tripped)
+   10. Parse output (JSON + Zod if schema defined)
+   11. Fire `onRunEnd`, return `RunResult`
+4. If loop exits without return — throw `MaxTurnsExceededError`

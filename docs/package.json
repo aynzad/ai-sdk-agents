@@ -1,0 +1,31 @@
+{
+  "name": "docs",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "latest",
+    "@astrojs/starlight-tailwind": "latest",
+    "ai-sdk-agents": "workspace:*",
+    "@tailwindcss/vite": "latest",
+    "astro": "^6.0.4",
+    "starlight-llms-txt": "latest",
+    "starlight-typedoc": "latest",
+    "typedoc": "latest",
+    "typedoc-plugin-markdown": "latest"
+  },
+  "devDependencies": {
+    "tailwindcss": "latest",
+    "tsx": "latest",
+    "typedoc-plugin-frontmatter": "latest",
+    "typedoc-plugin-zod": "latest"
+  }
+}

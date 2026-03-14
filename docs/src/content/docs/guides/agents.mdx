@@ -1,0 +1,193 @@
+---
+title: Agents
+description: Create and configure agents — the core building block of ai-sdk-agents.
+---
+
+Agents are the core primitive. An `Agent` is a declarative container that holds configuration (name, model, instructions, tools, handoffs, guardrails, hooks) but does **not** execute anything — that's the [Runner's](/ai-sdk-agents/guides/running-agents/) job.
+
+## Creating an Agent
+
+```ts
+import { Agent } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const agent = new Agent({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+});
+```
+
+The `name` and `model` fields are required. Everything else is optional.
+
+## Agent Configuration
+
+The full `AgentConfig` shape:
+
+```ts
+interface AgentConfig<TContext, TOutput> {
+  name: string;
+  model: LanguageModelV1;
+  instructions: string | ((ctx: RunContext<TContext>) => string | Promise<string>);
+  tools?: ToolSet;
+  handoffs?: HandoffTarget<TContext>[];
+  inputGuardrails?: Guardrail<TContext>[];
+  outputGuardrails?: Guardrail<TContext>[];
+  outputSchema?: z.ZodType<TOutput>;
+  maxToolRoundtrips?: number;
+  modelSettings?: ModelSettings;
+  hooks?: AgentHooks<TContext>;
+}
+```
+
+### Model Settings
+
+Pass model-specific settings like `temperature` and `maxTokens`:
+
+```ts
+const agent = new Agent({
+  name: "Creative",
+  model: openai("gpt-4o"),
+  instructions: "Write creative fiction.",
+  modelSettings: {
+    temperature: 0.9,
+    maxTokens: 2000,
+  },
+});
+```
+
+### Max Tool Roundtrips
+
+Control how many tool-call loops the AI SDK executes per turn (default: `10`):
+
+```ts
+const agent = new Agent({
+  name: "Researcher",
+  model: openai("gpt-4o"),
+  instructions: "Research topics thoroughly.",
+  tools: { /* ... */ },
+  maxToolRoundtrips: 5,
+});
+```
+
+## Dynamic Instructions
+
+Instructions can be a function that receives the `RunContext`, enabling prompts that depend on runtime state:
+
+```ts
+const agent = new Agent({
+  name: "Personalized",
+  model: openai("gpt-4o"),
+  instructions: (ctx) =>
+    `You are assisting ${ctx.context.userName}. Be friendly.`,
+});
+
+const result = await Runner.run(agent, "Hello!", {
+  context: { userName: "Alice" },
+});
+```
+
+The function can also be `async`:
+
+```ts
+const agent = new Agent({
+  name: "ContextAware",
+  model: openai("gpt-4o"),
+  instructions: async (ctx) => {
+    const prefs = await fetchUserPreferences(ctx.context.userId);
+    return `User prefers ${prefs.language}. Respond accordingly.`;
+  },
+});
+```
+
+## Output Schema
+
+Force structured output by providing a Zod schema. The Runner will parse and validate the model's JSON response:
+
+```ts
+import { z } from "zod";
+
+const SentimentSchema = z.object({
+  sentiment: z.enum(["positive", "negative", "neutral"]),
+  confidence: z.number().min(0).max(1),
+});
+
+const agent = new Agent({
+  name: "Analyzer",
+  model: openai("gpt-4o"),
+  instructions: "Analyze sentiment. Return JSON.",
+  outputSchema: SentimentSchema,
+});
+
+const result = await Runner.run(agent, "I love this product!");
+// result.output is typed as { sentiment: string; confidence: number }
+```
+
+## Cloning Agents
+
+Create agent variants without mutating the original:
+
+```ts
+const baseAgent = new Agent({
+  name: "Base",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+});
+
+const creativeAgent = baseAgent.clone({
+  name: "Creative",
+  modelSettings: { temperature: 0.9 },
+});
+
+const preciseAgent = baseAgent.clone({
+  name: "Precise",
+  modelSettings: { temperature: 0.1 },
+});
+```
+
+`clone()` returns a new `Agent` instance — the original is never modified.
+
+## Agent as Tool
+
+Wrap an agent as a tool that another agent can call. Unlike handoffs, the **parent agent retains control**:
+
+```ts
+const researchAgent = new Agent({
+  name: "Researcher",
+  model: openai("gpt-4o"),
+  instructions: "You research topics and return factual summaries.",
+});
+
+const mainAgent = new Agent({
+  name: "Main",
+  model: openai("gpt-4o"),
+  instructions: "Use the research tool for factual questions.",
+  tools: {
+    research: researchAgent.asTool({
+      description: "Research a topic and return a summary",
+    }),
+  },
+});
+```
+
+See [Tools](/ai-sdk-agents/guides/tools/) for more details on agent-as-tool vs handoffs.
+
+## Lifecycle Hooks
+
+Agents can define hooks that fire during execution:
+
+```ts
+const agent = new Agent({
+  name: "Logged",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+  hooks: {
+    onStart: (ctx) => console.log(`Agent ${ctx.agent} started`),
+    onEnd: (ctx, output) => console.log(`Agent ${ctx.agent} finished: ${output}`),
+    onHandoff: (ctx, targetAgent) =>
+      console.log(`Handing off to ${targetAgent}`),
+  },
+});
+```
+
+See [Running Agents](/ai-sdk-agents/guides/running-agents/) for the full list of lifecycle hooks.

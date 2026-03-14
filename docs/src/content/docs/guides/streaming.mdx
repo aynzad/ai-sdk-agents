@@ -1,0 +1,188 @@
+---
+title: Streaming
+description: Real-time token-by-token streaming with Runner.stream().
+---
+
+`Runner.stream()` provides real-time token-by-token streaming using AI SDK's `streamText` under the hood. It has its own orchestration loop (not a wrapper around `run()`) for true real-time event delivery.
+
+## Basic Streaming
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const agent = new Agent({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+});
+
+const stream = Runner.stream(agent, "Tell me a story.");
+
+for await (const event of stream.events) {
+  switch (event.type) {
+    case "text_delta":
+      process.stdout.write(event.delta);
+      break;
+    case "agent_start":
+      console.log(`\n[Agent: ${event.agent}]`);
+      break;
+    case "done":
+      console.log("\n[Complete]");
+      break;
+  }
+}
+```
+
+## StreamResult Shape
+
+`Runner.stream()` returns a `StreamResult`:
+
+```ts
+interface StreamResult<TOutput> {
+  events: AsyncIterable<StreamEvent>;
+  result: Promise<RunResult<TOutput>>;
+}
+```
+
+- **`events`** — async generator yielding `StreamEvent` objects in real-time
+- **`result`** — promise that resolves to the full `RunResult` when the run completes
+
+## Stream Events
+
+All events have a `type` discriminator:
+
+| Event Type | Description | Key Fields |
+|-----------|-------------|------------|
+| `agent_start` | Agent begins a turn | `agent` |
+| `agent_end` | Agent finishes a turn | `agent` |
+| `text_delta` | Token from the model | `delta` |
+| `tool_call_start` | Tool invocation begins | `toolName`, `toolCallId`, `args` |
+| `tool_call_end` | Tool invocation completes | `toolName`, `toolCallId`, `result` |
+| `handoff` | Agent handoff occurred | `from`, `to` |
+| `done` | Run complete | `result` (RunResult) |
+| `error` | Run failed | `error` |
+
+## Consuming Events
+
+### Text Only
+
+```ts
+const stream = Runner.stream(agent, "Hello!");
+
+for await (const event of stream.events) {
+  if (event.type === "text_delta") {
+    process.stdout.write(event.delta);
+  }
+}
+```
+
+### Full Event Handling
+
+```ts
+const stream = Runner.stream(agent, "Research this topic.");
+
+for await (const event of stream.events) {
+  switch (event.type) {
+    case "agent_start":
+      console.log(`[${event.agent} started]`);
+      break;
+    case "text_delta":
+      process.stdout.write(event.delta);
+      break;
+    case "tool_call_start":
+      console.log(`\n[Calling ${event.toolName}...]`);
+      break;
+    case "tool_call_end":
+      console.log(`[${event.toolName} returned: ${event.result}]`);
+      break;
+    case "handoff":
+      console.log(`\n[Handoff: ${event.from} → ${event.to}]`);
+      break;
+    case "error":
+      console.error("Error:", event.error);
+      break;
+    case "done":
+      console.log("\nFinal result:", event.result.output);
+      break;
+  }
+}
+```
+
+## Getting the Final Result
+
+The `result` promise resolves to the same `RunResult` as `Runner.run()`:
+
+```ts
+const stream = Runner.stream(agent, "Hello!");
+
+// Consume events
+for await (const event of stream.events) {
+  // ...
+}
+
+// Get final result
+const result = await stream.result;
+console.log(result.output);
+console.log(result.usage);
+```
+
+## Feature Parity with run()
+
+`Runner.stream()` supports all the same features as `Runner.run()`:
+
+- Input and output guardrails
+- Multi-agent handoffs with input filters
+- Output schema parsing (JSON + Zod)
+- All lifecycle hooks
+- Tracing with agent spans
+- Turn management with `MaxTurnsExceededError`
+- Usage accumulation across turns
+- Abort signal support
+
+## Handoffs in Streams
+
+When a handoff occurs during streaming, text deltas from the current agent are suppressed after the handoff is detected. The stream then continues with the new agent:
+
+```ts
+const stream = Runner.stream(triageAgent, "Help with billing.");
+
+for await (const event of stream.events) {
+  switch (event.type) {
+    case "agent_start":
+      console.log(`[${event.agent}]`);
+      break;
+    case "handoff":
+      console.log(`[Handed off to ${event.to}]`);
+      break;
+    case "text_delta":
+      process.stdout.write(event.delta);
+      break;
+  }
+}
+// Output:
+// [Triage]
+// [Handed off to Billing]
+// [Billing]
+// I can help you with your billing question...
+```
+
+## Error Handling
+
+Errors during streaming are yielded as `error` events and also reject the `result` promise:
+
+```ts
+const stream = Runner.stream(agent, "Hello!");
+
+for await (const event of stream.events) {
+  if (event.type === "error") {
+    console.error("Stream error:", event.error);
+  }
+}
+
+try {
+  await stream.result;
+} catch (err) {
+  // Same error as the event
+}
+```

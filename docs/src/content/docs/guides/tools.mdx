@@ -1,0 +1,152 @@
+---
+title: Tools
+description: Give agents capabilities with function tools, agent-as-tool, and guarded tools.
+---
+
+Tools extend what an agent can do. The library supports three kinds of tools: **function tools**, **agent-as-tool**, and **guarded tools**.
+
+## Function Tools
+
+Function tools are standard Vercel AI SDK tools defined with a Zod schema and an execute function:
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+
+const agent = new Agent({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: "You help with math and weather.",
+  tools: {
+    calculate: {
+      description: "Evaluate a math expression",
+      parameters: z.object({ expression: z.string() }),
+      execute: async ({ expression }) => String(eval(expression)),
+    },
+    getWeather: {
+      description: "Get the weather for a city",
+      parameters: z.object({ city: z.string() }),
+      execute: async ({ city }) => `72°F and sunny in ${city}`,
+    },
+  },
+});
+```
+
+Tools are passed directly to AI SDK's `generateText` / `streamText`. The model chooses which tool to call based on the user's message.
+
+## Agent as Tool
+
+Wrap an agent as a tool that another agent can invoke. The parent agent **retains control** after the sub-agent completes:
+
+```ts
+const factChecker = new Agent({
+  name: "FactChecker",
+  model: openai("gpt-4o"),
+  instructions: "Verify claims and return true/false with reasoning.",
+});
+
+const writer = new Agent({
+  name: "Writer",
+  model: openai("gpt-4o"),
+  instructions: "Write articles. Use the fact checker for any claims.",
+  tools: {
+    checkFact: factChecker.asTool({
+      description: "Verify a factual claim",
+    }),
+  },
+});
+```
+
+When the LLM calls `checkFact`, the library internally runs `Runner.run(factChecker, message)` and returns the output as the tool result. The parent agent then continues with this information.
+
+### Agent-as-Tool vs Handoffs
+
+| Feature | Agent as Tool | Handoff |
+|---------|--------------|---------|
+| Control | Parent retains control | Target takes over completely |
+| History | Sub-agent gets only the tool message | Target gets full conversation history |
+| Use case | Delegation for a specific task | Routing to a specialist |
+
+## Guarded Tools
+
+Guarded tools wrap standard tools with input and output guardrails that run on every invocation:
+
+```ts
+import { guardedTool, defineToolInputGuardrail, ToolGuardrailBehaviorFactory } from "@aynzad/ai-sdk-agents";
+import { z } from "zod";
+
+const noSQLInjection = defineToolInputGuardrail({
+  name: "no-sql-injection",
+  execute: async ({ args }) => {
+    if (typeof args.query === "string" && args.query.includes("DROP TABLE")) {
+      return ToolGuardrailBehaviorFactory.rejectContent(
+        "Query rejected: potential SQL injection detected."
+      );
+    }
+    return ToolGuardrailBehaviorFactory.allow();
+  },
+});
+
+const dbQuery = guardedTool({
+  description: "Run a database query",
+  parameters: z.object({ query: z.string() }),
+  execute: async ({ query }) => `Results for: ${query}`,
+  inputGuardrails: [noSQLInjection],
+});
+```
+
+### Guardrail Behaviors
+
+Tool guardrails return one of three behaviors:
+
+- **`allow()`** — proceed with execution
+- **`rejectContent(message)`** — skip execution, return the message as the tool result (model sees it and can react)
+- **`throwException(reason?, metadata?)`** — throw `ToolGuardrailTripwiredError`, halting the run
+
+```ts
+import { ToolGuardrailBehaviorFactory } from "@aynzad/ai-sdk-agents";
+
+ToolGuardrailBehaviorFactory.allow();
+ToolGuardrailBehaviorFactory.rejectContent("Not allowed.");
+ToolGuardrailBehaviorFactory.throwException("Critical violation");
+```
+
+### Output Guardrails on Tools
+
+Validate what a tool returns:
+
+```ts
+import { defineToolOutputGuardrail, guardedTool, ToolGuardrailBehaviorFactory } from "@aynzad/ai-sdk-agents";
+import { z } from "zod";
+
+const noPII = defineToolOutputGuardrail({
+  name: "no-pii-in-output",
+  execute: async ({ output }) => {
+    if (typeof output === "string" && output.includes("SSN")) {
+      return ToolGuardrailBehaviorFactory.rejectContent(
+        "Output redacted: contains PII."
+      );
+    }
+    return ToolGuardrailBehaviorFactory.allow();
+  },
+});
+
+const lookupUser = guardedTool({
+  description: "Look up user information",
+  parameters: z.object({ userId: z.string() }),
+  execute: async ({ userId }) => `User ${userId}: John Doe, SSN: 123-45-6789`,
+  outputGuardrails: [noPII],
+});
+```
+
+### Difference from Agent Guardrails
+
+| Feature | Agent Guardrails | Tool Guardrails |
+|---------|-----------------|-----------------|
+| Scope | Entire agent input/output | Per-tool invocation |
+| Execution | Parallel | Sequential |
+| Failure mode | Always throws `GuardrailTripwiredError` | `allow`, `rejectContent`, or `throwException` |
+| Attached to | Agent config | Individual tool via `guardedTool()` |
+
+See [Guardrails](/ai-sdk-agents/guides/guardrails/) for agent-level guardrails.

@@ -1,0 +1,152 @@
+---
+title: Results
+description: Understand RunResult — output, steps, usage, and tracing data.
+---
+
+Both `Runner.run()` and `Runner.stream()` produce a `RunResult` that contains the final output, execution steps, token usage, and tracing information.
+
+## RunResult Shape
+
+```ts
+interface RunResult<TOutput> {
+  output: TOutput;
+  agent: string;
+  steps: RunStep[];
+  usage: LanguageModelUsage;
+  traceId?: string;
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `output` | The agent's final output. `string` by default, or typed if `outputSchema` is set. |
+| `agent` | Name of the agent that produced the final output. |
+| `steps` | Array of all execution steps (messages, tool calls, handoffs). |
+| `usage` | Accumulated token usage across all turns and agents. |
+| `traceId` | Trace identifier for observability (if tracing is enabled). |
+
+## Output
+
+By default, `output` is the raw text from the model:
+
+```ts
+const result = await Runner.run(agent, "Hello!");
+console.log(result.output); // string
+```
+
+With an `outputSchema`, the output is parsed and typed:
+
+```ts
+const agent = new Agent({
+  name: "Analyzer",
+  model: openai("gpt-4o"),
+  instructions: "Analyze sentiment. Return JSON.",
+  outputSchema: z.object({
+    sentiment: z.enum(["positive", "negative", "neutral"]),
+    confidence: z.number(),
+  }),
+});
+
+const result = await Runner.run(agent, "Great product!");
+result.output.sentiment;  // "positive"
+result.output.confidence; // 0.95
+```
+
+## Steps
+
+Steps record every action during the run:
+
+```ts
+interface RunStep {
+  type: "message" | "tool_call" | "tool_result" | "handoff";
+  agent: string;
+  data: unknown;
+}
+```
+
+### Step Types
+
+**Message step** — the agent produced text output:
+```ts
+{ type: "message", agent: "Assistant", data: { text: "Hello!" } }
+```
+
+**Tool call step** — the agent invoked a tool:
+```ts
+{ type: "tool_call", agent: "Assistant", data: { toolName: "getWeather", args: { city: "Berlin" } } }
+```
+
+**Tool result step** — a tool returned a result:
+```ts
+{ type: "tool_result", agent: "Assistant", data: { toolName: "getWeather", result: "72°F" } }
+```
+
+**Handoff step** — an agent handoff occurred:
+```ts
+{ type: "handoff", agent: "Triage", data: { from: "Triage", to: "Billing" } }
+```
+
+### Iterating Steps
+
+```ts
+const result = await Runner.run(triageAgent, "Help with billing.");
+
+for (const step of result.steps) {
+  switch (step.type) {
+    case "tool_call":
+      console.log(`${step.agent} called ${step.data.toolName}`);
+      break;
+    case "handoff":
+      console.log(`${step.data.from} → ${step.data.to}`);
+      break;
+    case "message":
+      console.log(`${step.agent}: ${step.data.text}`);
+      break;
+  }
+}
+```
+
+## Usage
+
+Token usage is accumulated across all agents and turns:
+
+```ts
+const result = await Runner.run(agent, "Hello!");
+
+console.log(result.usage);
+// {
+//   promptTokens: 150,
+//   completionTokens: 45,
+//   totalTokens: 195
+// }
+```
+
+In multi-agent runs, usage includes tokens from every agent:
+
+```ts
+const result = await Runner.run(triageAgent, "Help with billing.");
+// result.usage includes tokens from both triage and billing agents
+```
+
+## Trace ID
+
+When tracing is enabled, the `traceId` links the run to its trace data:
+
+```ts
+const result = await Runner.run(agent, "Hello!", {
+  tracing: { enabled: true },
+});
+
+console.log(result.traceId); // "abc123..."
+```
+
+See [Tracing](/ai-sdk-agents/guides/tracing/) for details on collecting and exporting trace data.
+
+## Final Agent
+
+`result.agent` tells you which agent produced the final output. This is useful in multi-agent scenarios:
+
+```ts
+const result = await Runner.run(triageAgent, "I need billing help.");
+console.log(result.agent); // "Billing" (not "Triage")
+```

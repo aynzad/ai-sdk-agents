@@ -1,5 +1,6 @@
 {
   "name": "ai-sdk-agents",
+  "packageManager": "pnpm@10.30.3",
   "version": "0.0.1",
   "description": "Multi-agent orchestration for Vercel AI SDK — handoffs, guardrails, and tracing",
   "author": "Alireza Esfahani <alireza@esfahani.dev>",
@@ -37,7 +38,11 @@
     "type-check": "tsc --noEmit",
     "prepublishOnly": "pnpm run build",
     "changeset": "changeset",
-    "release": "changeset publish"
+    "release": "changeset publish",
+    "build:ci": "pnpm run build",
+    "docs:dev": "pnpm --filter docs dev",
+    "docs:build": "pnpm --filter docs build",
+    "docs:scripts:check": "pnpm --filter docs astro check"
   },
   "keywords": [
     "ai",

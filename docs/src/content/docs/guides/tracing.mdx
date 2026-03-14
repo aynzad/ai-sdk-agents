@@ -1,0 +1,223 @@
+---
+title: Tracing
+description: Structured observability for every agent run — spans, processors, and integration recipes.
+---
+
+Tracing captures structured observability data for every agent run. Every LLM call, tool execution, handoff, and guardrail check is recorded as a span within a trace. Custom processors can export this data to Langfuse, Datadog, or any observability backend.
+
+## Enabling Tracing
+
+Tracing is enabled by default. Configure it via `RunConfig`:
+
+```ts
+import { Runner, consoleTraceProcessor } from "@aynzad/ai-sdk-agents";
+
+const result = await Runner.run(agent, "Hello!", {
+  tracing: {
+    enabled: true,
+    processors: [consoleTraceProcessor()],
+  },
+});
+
+console.log(result.traceId); // "abc123..."
+```
+
+### Disabling Tracing
+
+```ts
+const result = await Runner.run(agent, "Hello!", {
+  tracing: { enabled: false },
+});
+```
+
+## Trace and Spans
+
+A **Trace** represents a complete agent run. Each trace contains **Spans** that represent individual operations:
+
+```ts
+interface TraceSpan {
+  spanId: string;
+  traceId: string;
+  name: string;
+  type: "agent" | "tool" | "guardrail" | "custom";
+  parentSpanId?: string;
+  startTime: number;
+  endTime?: number;
+  attributes: Record<string, unknown>;
+}
+```
+
+## Using trace() Directly
+
+The `trace()` convenience function creates a trace, runs an async function, and auto-closes:
+
+```ts
+import { trace } from "@aynzad/ai-sdk-agents";
+
+const result = await trace("my-operation", async (t) => {
+  const span = t.span({ name: "step-1", type: "custom" });
+  span.setAttribute("key", "value");
+  // ... do work
+  span.end();
+
+  return "result";
+});
+```
+
+If the function throws, an error span is automatically created before the trace ends.
+
+## Trace Processors
+
+Processors receive events as traces and spans are created:
+
+```ts
+interface TraceProcessor {
+  onTraceStart?(traceId: string): void;
+  onSpan?(span: TraceSpan): void;
+  onTraceEnd?(traceId: string): void;
+}
+```
+
+### Console Processor
+
+Logs trace events to the console:
+
+```ts
+import { consoleTraceProcessor, addTraceProcessor } from "@aynzad/ai-sdk-agents";
+
+addTraceProcessor(consoleTraceProcessor());
+```
+
+### Memory Processor
+
+Stores spans in memory for inspection:
+
+```ts
+import { memoryTraceProcessor, addTraceProcessor } from "@aynzad/ai-sdk-agents";
+
+const memory = memoryTraceProcessor();
+addTraceProcessor(memory);
+
+// After running agents...
+const traces = memory.getTraces();
+for (const [traceId, spans] of traces) {
+  console.log(`Trace ${traceId}: ${spans.length} spans`);
+}
+
+memory.clear();
+```
+
+## Global Processors
+
+Register processors globally so all traces use them:
+
+```ts
+import { addTraceProcessor, removeTraceProcessor, clearTraceProcessors } from "@aynzad/ai-sdk-agents";
+
+const processor = consoleTraceProcessor();
+
+addTraceProcessor(processor);    // Register
+removeTraceProcessor(processor); // Unregister
+clearTraceProcessors();          // Remove all
+```
+
+Global processors are merged with per-trace processors at trace construction time.
+
+## Custom Trace ID
+
+Provide your own trace ID for correlation with external systems:
+
+```ts
+const result = await Runner.run(agent, "Hello!", {
+  tracing: {
+    traceId: "my-custom-trace-id",
+  },
+});
+```
+
+## Building Custom Processors
+
+Implement the `TraceProcessor` interface to export data anywhere:
+
+```ts
+import type { TraceProcessor, TraceSpan } from "@aynzad/ai-sdk-agents";
+
+function myExporter(): TraceProcessor {
+  return {
+    onTraceStart(traceId) {
+      console.log(`Trace started: ${traceId}`);
+    },
+    onSpan(span) {
+      // Send to your backend
+      fetch("/api/spans", {
+        method: "POST",
+        body: JSON.stringify(span),
+      });
+    },
+    onTraceEnd(traceId) {
+      console.log(`Trace ended: ${traceId}`);
+    },
+  };
+}
+```
+
+## Langfuse Integration
+
+Here's a recipe for wiring up [Langfuse](https://langfuse.com) as a trace processor:
+
+```ts
+import Langfuse from "langfuse";
+import type { TraceProcessor } from "@aynzad/ai-sdk-agents";
+import { addTraceProcessor } from "@aynzad/ai-sdk-agents";
+
+function langfuseTraceProcessor(opts: {
+  publicKey: string;
+  secretKey: string;
+  baseUrl?: string;
+}): TraceProcessor {
+  const langfuse = new Langfuse({
+    publicKey: opts.publicKey,
+    secretKey: opts.secretKey,
+    baseUrl: opts.baseUrl,
+  });
+  const traces = new Map<string, ReturnType<typeof langfuse.trace>>();
+
+  return {
+    onTraceStart(traceId) {
+      traces.set(traceId, langfuse.trace({ id: traceId, name: traceId }));
+    },
+    onSpan(span) {
+      const t = traces.get(span.traceId);
+      if (!t) return;
+      t.span({
+        name: span.name,
+        startTime: new Date(span.startTime),
+        endTime: span.endTime ? new Date(span.endTime) : undefined,
+        metadata: { type: span.type, ...span.attributes },
+      });
+    },
+    async onTraceEnd(traceId) {
+      traces.delete(traceId);
+      await langfuse.flushAsync();
+    },
+  };
+}
+
+addTraceProcessor(
+  langfuseTraceProcessor({
+    publicKey: process.env.LANGFUSE_PUBLIC_KEY!,
+    secretKey: process.env.LANGFUSE_SECRET_KEY!,
+  })
+);
+```
+
+## Error Safety
+
+Processor errors are swallowed — every processor call is wrapped in try/catch. A buggy telemetry exporter will never crash the agent run.
+
+## Span Lifecycle
+
+- `Trace.span(config)` creates a span with a unique `spanId`, `startTime`, and empty `attributes`
+- `span.setAttribute(key, value)` adds metadata
+- `span.end()` sets `endTime` and notifies processors
+- Both `Trace.end()` and `span.end()` are idempotent — calling them twice is a no-op

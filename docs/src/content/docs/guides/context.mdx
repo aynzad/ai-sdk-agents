@@ -1,0 +1,178 @@
+---
+title: Context Management
+description: Pass typed context through agents, guardrails, and hooks with RunContext.
+---
+
+`RunContext` is a typed wrapper that flows through the entire agent execution — available in instructions, guardrails, hooks, and tool guardrails.
+
+## RunContext Shape
+
+```ts
+interface RunContext<TContext> {
+  context: TContext;
+  agent: string;
+  turn: number;
+  signal?: AbortSignal;
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `context` | Your custom context object (typed via generics). |
+| `agent` | Name of the currently executing agent. |
+| `turn` | Current turn number (incremented each iteration). |
+| `signal` | Abort signal from the run config (if provided). |
+
+## Passing Context
+
+Provide context when running an agent:
+
+```ts
+interface MyContext {
+  userId: string;
+  locale: string;
+  permissions: string[];
+}
+
+const agent = new Agent<MyContext>({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: (ctx) =>
+    `You are helping user ${ctx.context.userId}. Respond in ${ctx.context.locale}.`,
+});
+
+const result = await Runner.run(agent, "Hello!", {
+  context: {
+    userId: "user-123",
+    locale: "en-US",
+    permissions: ["read", "write"],
+  },
+});
+```
+
+## Context in Instructions
+
+Dynamic instructions receive the full `RunContext`:
+
+```ts
+const agent = new Agent<{ userName: string }>({
+  name: "Personalized",
+  model: openai("gpt-4o"),
+  instructions: (ctx) => `
+    You are assisting ${ctx.context.userName}.
+    This is turn ${ctx.turn} of the conversation.
+    Current agent: ${ctx.agent}.
+  `,
+});
+```
+
+Async instructions work too:
+
+```ts
+const agent = new Agent<{ userId: string }>({
+  name: "DataAware",
+  model: openai("gpt-4o"),
+  instructions: async (ctx) => {
+    const user = await db.getUser(ctx.context.userId);
+    return `You are helping ${user.name}. Their plan is ${user.plan}.`;
+  },
+});
+```
+
+## Context in Guardrails
+
+Guardrails receive the `RunContext` as their first argument:
+
+```ts
+import { guardrail } from "@aynzad/ai-sdk-agents";
+
+const permissionCheck = guardrail<{ permissions: string[] }>({
+  name: "permission-check",
+  execute: async (ctx, input) => {
+    if (!ctx.context.permissions.includes("admin")) {
+      return { tripwired: true, reason: "Admin access required" };
+    }
+    return { tripwired: false };
+  },
+});
+```
+
+## Context in Hooks
+
+Both agent hooks and run hooks receive the `RunContext`:
+
+```ts
+const result = await Runner.run(agent, "Hello!", {
+  context: { requestId: "req-abc" },
+  hooks: {
+    onRunStart: (ctx) => {
+      console.log(`Request ${ctx.context.requestId} started`);
+    },
+    onAgentStart: (ctx) => {
+      console.log(`Agent ${ctx.agent}, turn ${ctx.turn}`);
+    },
+  },
+});
+```
+
+## Context in Tool Guardrails
+
+Tool guardrails also have access to the context:
+
+```ts
+import { defineToolInputGuardrail, ToolGuardrailBehaviorFactory } from "@aynzad/ai-sdk-agents";
+
+const adminOnly = defineToolInputGuardrail<{ role: string }>({
+  name: "admin-only",
+  execute: async ({ ctx }) => {
+    if (ctx.context.role !== "admin") {
+      return ToolGuardrailBehaviorFactory.rejectContent("Admin access required.");
+    }
+    return ToolGuardrailBehaviorFactory.allow();
+  },
+});
+```
+
+## Type Safety
+
+The generic `TContext` type flows through the entire chain:
+
+```ts
+interface AppContext {
+  userId: string;
+  tenant: string;
+}
+
+// Agent is typed with AppContext
+const agent = new Agent<AppContext>({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: (ctx) => {
+    ctx.context.userId;  // string (typed)
+    ctx.context.tenant;  // string (typed)
+    return "You are a helpful assistant.";
+  },
+  inputGuardrails: [
+    guardrail<AppContext>({
+      name: "tenant-check",
+      execute: async (ctx) => {
+        ctx.context.tenant; // string (typed)
+        return { tripwired: false };
+      },
+    }),
+  ],
+});
+
+// Context must match AppContext
+await Runner.run(agent, "Hello!", {
+  context: { userId: "u1", tenant: "acme" },
+});
+```
+
+## Context is Mutable
+
+The `RunContext` is updated each turn:
+- `ctx.agent` reflects the currently executing agent
+- `ctx.turn` increments with each loop iteration
+
+This is intentional — it lets instructions and guardrails adapt to the current state of the run.

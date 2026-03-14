@@ -1,0 +1,79 @@
+---
+title: AI SDK Agents
+description: Multi-agent orchestration for Vercel AI SDK — handoffs, guardrails, and tracing.
+template: splash
+hero:
+  tagline: Build multi-agent AI apps on top of Vercel AI SDK with handoffs, guardrails, and tracing.
+  actions:
+    - text: Get Started
+      link: /ai-sdk-agents/guides/quickstart/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/aynzad/ai-sdk-agents
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+## Overview
+
+**ai-sdk-agents** is a thin, zero-runtime-dependency TypeScript library that adds multi-agent orchestration on top of Vercel AI SDK's primitives (`generateText`, `streamText`, `tool()`). It does not replace AI SDK — it composes on top of it.
+
+```bash
+pnpm add @aynzad/ai-sdk-agents ai zod
+```
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const agent = new Agent({
+  name: "Assistant",
+  model: openai("gpt-4o"),
+  instructions: "You are a helpful assistant.",
+});
+
+const result = await Runner.run(agent, "Write a haiku about recursion.");
+console.log(result.output);
+```
+
+## Why AI SDK Agents?
+
+Vercel AI SDK gives you powerful primitives. OpenAI's Agents SDK gives you multi-agent orchestration. **ai-sdk-agents** bridges the gap — adding handoffs, guardrails, and tracing on top of AI SDK without locking you into a framework. [Read more about where it fits in the ecosystem](/ai-sdk-agents/guides/why/).
+
+<CardGrid>
+  <Card title="Zero Runtime Dependencies" icon="rocket">
+    Only `ai` and `zod` as peer deps. Nothing else ships.
+  </Card>
+  <Card title="~35KB Bundle" icon="seti:config">
+    Thin orchestration layer, not a framework.
+  </Card>
+  <Card title="Any Provider" icon="puzzle">
+    Works with OpenAI, Anthropic, Google, or any AI SDK provider.
+  </Card>
+  <Card title="Incremental Adoption" icon="add-document">
+    Add to existing AI SDK code in minutes.
+  </Card>
+</CardGrid>
+
+## Core Primitives
+
+The SDK has a small set of primitives:
+
+- **Agents** — LLMs equipped with instructions and tools
+- **Handoffs** — transfer full conversation control between agents
+- **Guardrails** — validate inputs and outputs with tripwire-based halting
+- **Runner** — orchestration loop that manages the full agent execution
+- **Tracing** — structured observability for every agent run
+
+## Start Here
+
+| Goal | Start here |
+|------|-----------|
+| Build your first agent | [Quickstart](/ai-sdk-agents/guides/quickstart/) |
+| Add function tools or agent-as-tool | [Tools](/ai-sdk-agents/guides/tools/) |
+| Validate inputs/outputs | [Guardrails](/ai-sdk-agents/guides/guardrails/) |
+| Multi-agent orchestration | [Agent Orchestration](/ai-sdk-agents/guides/multi-agent/) |
+| Token-by-token streaming | [Streaming](/ai-sdk-agents/guides/streaming/) |
+| Debug and monitor runs | [Tracing](/ai-sdk-agents/guides/tracing/) |

@@ -1,0 +1,174 @@
+---
+title: Handoffs
+description: Transfer full conversation control between agents with handoffs.
+---
+
+Handoffs transfer **full conversation control** from one agent to another. The receiving agent gets the message history and takes over completely. This is fundamentally different from [agent-as-tool](/ai-sdk-agents/guides/tools/#agent-as-tool) where the parent retains control.
+
+## Basic Handoff
+
+The simplest way to set up a handoff is to pass agents directly:
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const specialist = new Agent({
+  name: "Specialist",
+  model: openai("gpt-4o"),
+  instructions: "You are a domain expert.",
+});
+
+const router = new Agent({
+  name: "Router",
+  model: openai("gpt-4o"),
+  instructions: "Route to the specialist for domain questions.",
+  handoffs: [specialist],
+});
+```
+
+Under the hood, each handoff target becomes a tool named `transfer_to_{agent_name}` that the LLM can call.
+
+## Configuring Handoffs
+
+Use `handoff()` for more control:
+
+```ts
+import { handoff } from "@aynzad/ai-sdk-agents";
+
+const router = new Agent({
+  name: "Router",
+  model: openai("gpt-4o"),
+  instructions: "Route to billing for payment questions.",
+  handoffs: [
+    handoff(billingAgent, {
+      toolName: "route_to_billing",
+      toolDescription: "Transfer to billing for payment and invoice questions",
+      onHandoff: (ctx) => {
+        console.log("Handing off to billing");
+      },
+    }),
+  ],
+});
+```
+
+### Handoff Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `toolName` | `string` | Custom tool name (default: `transfer_to_{name}`) |
+| `toolDescription` | `string` | Description shown to the LLM |
+| `onHandoff` | `(ctx) => void` | Callback fired when handoff occurs |
+| `inputFilter` | `(messages) => messages` | Filter message history before handoff |
+
+## Input Filters
+
+Control what message history the receiving agent sees:
+
+```ts
+import { handoff, handoffFilters } from "@aynzad/ai-sdk-agents";
+
+const router = new Agent({
+  name: "Router",
+  model: openai("gpt-4o"),
+  instructions: "Route to specialist.",
+  handoffs: [
+    handoff(specialist, {
+      inputFilter: handoffFilters.keepLast(5),
+    }),
+  ],
+});
+```
+
+### Built-in Filters
+
+```ts
+import { handoffFilters } from "@aynzad/ai-sdk-agents";
+
+// Keep only the last N messages
+handoffFilters.keepLast(5);
+
+// Remove all tool-related messages
+handoffFilters.removeToolMessages;
+
+// Keep only user/assistant messages
+handoffFilters.keepConversation;
+
+// Start with blank history
+handoffFilters.removeAll;
+```
+
+### Composing Filters
+
+Chain multiple filters together:
+
+```ts
+const filter = handoffFilters.compose(
+  handoffFilters.removeToolMessages,
+  handoffFilters.keepLast(10)
+);
+
+const router = new Agent({
+  name: "Router",
+  model: openai("gpt-4o"),
+  instructions: "Route to specialist.",
+  handoffs: [
+    handoff(specialist, { inputFilter: filter }),
+  ],
+});
+```
+
+Filters are applied left-to-right via `reduce`. With zero filters, `compose` acts as an identity function.
+
+### Custom Filters
+
+Write your own filter function:
+
+```ts
+const customFilter = (messages: CoreMessage[]) =>
+  messages.filter((m) => m.role !== "system");
+
+const router = new Agent({
+  name: "Router",
+  model: openai("gpt-4o"),
+  instructions: "Route to specialist.",
+  handoffs: [
+    handoff(specialist, { inputFilter: customFilter }),
+  ],
+});
+```
+
+## How Handoffs Work
+
+1. The Runner converts each handoff target into an AI SDK tool via `handoffToTool()`
+2. These tools are added to the agent's tool set before calling `generateText`
+3. When the LLM calls a handoff tool (e.g., `transfer_to_billing`), the tool returns a sentinel object
+4. The Runner detects the sentinel and triggers the handoff:
+   - Fires `onHandoff` callback
+   - Applies `inputFilter` to message history
+   - Switches `currentAgent` to the target
+5. The next loop iteration runs with the new agent
+
+## Sequential Handoffs
+
+Agents can hand off in a chain: A → B → C
+
+```ts
+const agentC = new Agent({ name: "C", model, instructions: "Final agent." });
+const agentB = new Agent({ name: "B", model, instructions: "Hand off to C.", handoffs: [agentC] });
+const agentA = new Agent({ name: "A", model, instructions: "Hand off to B.", handoffs: [agentB] });
+
+const result = await Runner.run(agentA, "Start.");
+console.log(result.agent); // "C"
+```
+
+Each handoff consumes one turn toward `maxTurns`.
+
+## Tool Name Convention
+
+Handoff tools are named `transfer_to_{agent_name}` by default. Special characters in agent names are replaced with underscores:
+
+- Agent `"Billing Support"` → tool `transfer_to_Billing_Support`
+- Agent `"tech-help"` → tool `transfer_to_tech_help`
+
+Override with `toolName` in the `handoff()` options.

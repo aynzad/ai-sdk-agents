@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+.site-title img {
+  height: 1.5rem;
+  width: auto;
+}

@@ -1,0 +1,60 @@
+---
+title: Why AI SDK Agents?
+description: Where AI SDK Agents fits in the ecosystem — and when you should (or shouldn't) use it.
+---
+
+## The Ecosystem Today
+
+There are excellent tools in the AI agent space already. **Mastra AI** is a full-stack agent framework. **ai-sdk-tools** from Midday provides utilities like artifacts streaming and caching. The **OpenAI Agents SDK** offers great DX but locks you into OpenAI models.
+
+So does it make sense to build yet another library? **Yes — if it's scoped as a thin, focused orchestration layer, not a full framework.**
+
+## Why Mastra Is Not Always the Answer
+
+Mastra is impressive, but it's a full-stack framework — it wants to own your entire backend. It bundles workflows, RAG, memory, evals, a dev server, deployment tooling, and more. If you just want OpenAI-Agents-style DX on top of code you already have with AI SDK, adopting Mastra means rewriting your architecture around their opinions. That's a massive migration, not a library addition.
+
+Similarly, **ai-sdk-tools** from Midday is useful but it's a grab-bag of utilities (artifacts streaming, Zustand state, caching) with handoffs bolted on. It's not designed as a coherent agent orchestration layer.
+
+## The Gap That Actually Exists
+
+What's missing in the ecosystem is a **thin, composable, zero-opinion agent orchestration layer** that sits directly on top of Vercel AI SDK's existing primitives (`generateText`, `streamText`, `tool()`) and adds exactly four things:
+
+1. **Declarative agent definition** — handoffs, guardrails, and tools in one place
+2. **Handoff primitive** — transfers conversation control between agents
+3. **Guardrail pipeline** — input/output/tool validation with tripwire halting
+4. **Tracing** — structured observability wrapping AI SDK's telemetry into something usable
+
+That's it. No workflow engine, no RAG, no memory system, no dev server, no deployment platform. Just the orchestration gap between "I have AI SDK tools" and "I need multiple agents collaborating."
+
+## When It Makes Sense
+
+Use ai-sdk-agents when:
+
+- **You have existing AI SDK code** and want to add multi-agent patterns without rewriting everything
+- **You want the OpenAI Agents DX** (declarative agents, handoffs, guardrails) but need provider flexibility (Anthropic, Google, etc.)
+- **You're building a product where agent orchestration is core** — investing in a clean abstraction pays for itself
+- **You want something you can open-source** — there's clear community demand for this exact layer (the "missing middle" between raw AI SDK and full frameworks)
+
+## When It Doesn't Make Sense
+
+Skip ai-sdk-agents if:
+
+- **You're already using Mastra and happy with the full-framework approach** — adding another layer creates confusion
+- **You only need single-agent loops** — AI SDK's `generateText` with `maxSteps` already covers this well, and you'd be adding infrastructure you don't need
+- **You need production-grade tracing today** — OpenAI's built-in dashboard or a dedicated observability tool (Langfuse, Braintrust) will get you there faster
+- **Your team is small and this isn't your product** — the maintenance cost of adopting any new SDK is real
+
+## Comparison
+
+| Feature | ai-sdk-agents | Mastra AI | ai-sdk-tools | OpenAI Agents SDK |
+|---------|:---:|:---:|:---:|:---:|
+| Multi-agent handoffs | Yes | Yes | Partial | Yes |
+| Guardrails (input/output/tool) | Yes | No | No | Yes |
+| Tracing | Yes | Yes | No | Yes |
+| Any LLM provider | Yes | Yes | Yes | OpenAI only |
+| Zero runtime deps | Yes | No | No | No |
+| Bundle size | ~35KB | Framework | Varies | ~100KB+ |
+| Works with existing AI SDK code | Drop-in | Rewrite | Drop-in | Separate SDK |
+| Workflow engine | No | Yes | No | No |
+| RAG / Memory | No | Yes | No | No |
+| Dev server / Deployment | No | Yes | No | No |

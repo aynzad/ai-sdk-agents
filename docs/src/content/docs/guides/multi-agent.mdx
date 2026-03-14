@@ -1,0 +1,171 @@
+---
+title: Agent Orchestration
+description: Patterns for coordinating multiple agents — delegation, routing, and pipelines.
+---
+
+Multi-agent orchestration is the core value proposition of ai-sdk-agents. There are two main patterns: **handoffs** (transfer control) and **agent-as-tool** (delegate and return).
+
+## Handoffs vs Agent-as-Tool
+
+| Pattern | Control Flow | Message History | Best For |
+|---------|-------------|-----------------|----------|
+| **Handoff** | Target takes over completely | Target sees full history (optionally filtered) | Routing, specialist agents |
+| **Agent-as-Tool** | Parent retains control | Sub-agent sees only the tool message | Delegation, fact-checking |
+
+## Routing Pattern
+
+A triage agent routes to specialists based on the user's message:
+
+```ts
+import { Agent, Runner } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+
+const billingAgent = new Agent({
+  name: "Billing",
+  model: openai("gpt-4o"),
+  instructions: "You handle billing and payment questions.",
+});
+
+const technicalAgent = new Agent({
+  name: "Technical",
+  model: openai("gpt-4o"),
+  instructions: "You handle technical support questions.",
+});
+
+const triageAgent = new Agent({
+  name: "Triage",
+  model: openai("gpt-4o"),
+  instructions: `You are a triage agent. Route the user to the right specialist:
+- Billing questions → billing agent
+- Technical questions → technical agent
+- Otherwise, answer directly.`,
+  handoffs: [billingAgent, technicalAgent],
+});
+
+const result = await Runner.run(triageAgent, "My payment failed.");
+console.log(result.agent); // "Billing"
+```
+
+## Sequential Pipeline
+
+Chain agents where each one hands off to the next:
+
+```ts
+const researcher = new Agent({
+  name: "Researcher",
+  model: openai("gpt-4o"),
+  instructions: "Research the topic, then hand off to the writer.",
+  handoffs: [writer],
+});
+
+const writer = new Agent({
+  name: "Writer",
+  model: openai("gpt-4o"),
+  instructions: "Write a polished article based on the research.",
+  handoffs: [editor],
+});
+
+const editor = new Agent({
+  name: "Editor",
+  model: openai("gpt-4o"),
+  instructions: "Edit and polish the article. Return the final version.",
+});
+
+const result = await Runner.run(researcher, "Write about quantum computing.");
+console.log(result.agent); // "Editor"
+```
+
+## Manager Pattern
+
+A manager agent delegates to specialists using agent-as-tool, keeping orchestration control:
+
+```ts
+const factChecker = new Agent({
+  name: "FactChecker",
+  model: openai("gpt-4o"),
+  instructions: "Verify factual claims. Return true/false with reasoning.",
+});
+
+const researcher = new Agent({
+  name: "Researcher",
+  model: openai("gpt-4o"),
+  instructions: "Research topics and return detailed summaries.",
+});
+
+const manager = new Agent({
+  name: "Manager",
+  model: openai("gpt-4o"),
+  instructions: `You are a research manager. Use the research tool to gather information
+and the fact checker to verify claims before including them.`,
+  tools: {
+    research: researcher.asTool({ description: "Research a topic" }),
+    checkFact: factChecker.asTool({ description: "Verify a factual claim" }),
+  },
+});
+
+const result = await Runner.run(manager, "Is the Great Wall visible from space?");
+```
+
+## Combining Patterns
+
+You can mix handoffs and agent-as-tool in the same agent:
+
+```ts
+const escalationAgent = new Agent({
+  name: "Escalation",
+  model: openai("gpt-4o"),
+  instructions: "You handle escalated issues with human oversight.",
+});
+
+const supportAgent = new Agent({
+  name: "Support",
+  model: openai("gpt-4o"),
+  instructions: `Help customers with their issues.
+Use the knowledge base tool for answers.
+Escalate complex issues to the escalation agent.`,
+  tools: {
+    searchKB: knowledgeBase.asTool({ description: "Search knowledge base" }),
+  },
+  handoffs: [escalationAgent],
+});
+```
+
+## Turn Limits
+
+In multi-agent scenarios, set `maxTurns` to prevent infinite handoff loops:
+
+```ts
+const result = await Runner.run(triageAgent, "Help me.", {
+  maxTurns: 5,
+});
+```
+
+Each handoff consumes one turn. If agents keep handing off to each other, `MaxTurnsExceededError` is thrown when the limit is reached.
+
+## Tracking Agent Transitions
+
+Use hooks to monitor agent transitions:
+
+```ts
+const result = await Runner.run(triageAgent, "Help me.", {
+  hooks: {
+    onHandoff: (ctx, from, to) => {
+      console.log(`Handoff: ${from} → ${to}`);
+    },
+    onAgentStart: (ctx) => {
+      console.log(`Agent started: ${ctx.agent}`);
+    },
+  },
+});
+```
+
+## Usage Accumulation
+
+Token usage is accumulated across all agents in a multi-agent run:
+
+```ts
+const result = await Runner.run(triageAgent, "Help me.");
+console.log(result.usage);
+// { promptTokens: 1500, completionTokens: 300, totalTokens: 1800 }
+// Includes tokens from triage + specialist agents
+```
