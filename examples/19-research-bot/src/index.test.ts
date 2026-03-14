@@ -95,7 +95,10 @@ describe("research-bot", () => {
 
   it("planner should produce search terms", async () => {
     mockGenerateText.mockResolvedValue(
-      makeGenerateTextResult({ text: JSON.stringify(samplePlan) }),
+      makeGenerateTextResult({
+        text: JSON.stringify(samplePlan),
+        output: samplePlan,
+      }),
     );
 
     const planner = createPlanner();
@@ -112,7 +115,10 @@ describe("research-bot", () => {
   it("searcher should produce summaries for each term", async () => {
     for (const sr of sampleSearchResults) {
       mockGenerateText.mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sr) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sr),
+          output: sr,
+        }),
       );
     }
 
@@ -151,12 +157,18 @@ describe("research-bot", () => {
 
   it("full pipeline should execute planner → searchers → writer", async () => {
     mockGenerateText.mockResolvedValueOnce(
-      makeGenerateTextResult({ text: JSON.stringify(samplePlan) }),
+      makeGenerateTextResult({
+        text: JSON.stringify(samplePlan),
+        output: samplePlan,
+      }),
     );
 
     for (const sr of sampleSearchResults) {
       mockGenerateText.mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sr) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sr),
+          output: sr,
+        }),
       );
     }
 

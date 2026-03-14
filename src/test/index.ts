@@ -53,6 +53,7 @@ export interface StreamTextMockOverrides {
   steps?: Array<Record<string, unknown>>;
   text?: string;
   finishReason?: string;
+  output?: unknown;
 }
 
 // eslint-disable-next-line @typescript-eslint/require-await
@@ -87,6 +88,7 @@ export function makeStreamTextResult(overrides: StreamTextMockOverrides = {}) {
     toolCalls: Promise.resolve([]),
     toolResults: Promise.resolve([]),
     finishReason: Promise.resolve(overrides.finishReason ?? "stop"),
+    output: Promise.resolve(overrides.output),
     response: Promise.resolve({
       id: "resp-1",
       model: "test-model",

@@ -1,12 +1,12 @@
 import chalk from "chalk";
 import { Agent, Runner, handoff, handoffFilters } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
-const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
+// const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
 // const model = openai("gpt-4o-mini");
-// const model = google("gemini-2.0-flash");
+const model = google("gemini-2.5-flash");
 
 const specialistAgent = new Agent({
   name: "Specialist Agent",

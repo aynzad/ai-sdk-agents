@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import { Agent, Runner, type RunContext } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 interface UserPreferences {
   language: string;
@@ -24,9 +24,9 @@ const agent = new Agent<UserPreferences>({
           : "Balance clarity with technical detail.",
     ].join(" ");
   },
-  model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
+  // model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
   // model: openai("gpt-4o-mini"),
-  // model: google("gemini-2.0-flash"),
+  model: google("gemini-2.5-flash"),
 });
 
 async function main() {

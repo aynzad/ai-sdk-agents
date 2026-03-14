@@ -1320,10 +1320,13 @@ describe("Runner.run", () => {
       expect(typeof result.output).toBe("string");
     });
 
-    it("should parse and validate JSON with outputSchema", async () => {
+    it("should return structured output from AI SDK Output.object", async () => {
       const schema = z.object({ name: z.string(), age: z.number() });
       mockGenerateText.mockResolvedValue(
-        makeGenerateTextResult({ text: '{"name":"Alice","age":30}' }),
+        makeGenerateTextResult({
+          text: '{"name":"Alice","age":30}',
+          output: { name: "Alice", age: 30 },
+        }),
       );
 
       const agent = createSimpleAgent({ outputSchema: schema });
@@ -1331,20 +1334,28 @@ describe("Runner.run", () => {
       expect(result.output).toEqual({ name: "Alice", age: 30 });
     });
 
-    it("should throw on invalid JSON against schema", async () => {
+    it("should pass outputSchema to generateText via Output.object", async () => {
       const schema = z.object({ name: z.string(), age: z.number() });
       mockGenerateText.mockResolvedValue(
-        makeGenerateTextResult({ text: '{"name":"Alice"}' }),
+        makeGenerateTextResult({
+          output: { name: "Alice", age: 30 },
+        }),
       );
 
       const agent = createSimpleAgent({ outputSchema: schema });
-      await expect(Runner.run(agent, "Give me data")).rejects.toThrow();
+      await Runner.run(agent, "Give me data");
+
+      const callArgs = mockGenerateText.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
+      expect(callArgs.output).toBeDefined();
     });
 
     it("should type RunResult output with schema type", async () => {
       const schema = z.object({ value: z.number() });
       mockGenerateText.mockResolvedValue(
-        makeGenerateTextResult({ text: '{"value":42}' }),
+        makeGenerateTextResult({ output: { value: 42 } }),
       );
 
       const agent = new Agent({
@@ -2557,6 +2568,7 @@ describe("Runner.stream (full streaming)", () => {
         makeStreamTextResult({
           textDeltas: ['{"name":"Alice","age":30}'],
           text: '{"name":"Alice","age":30}',
+          output: { name: "Alice", age: 30 },
         }),
       );
 

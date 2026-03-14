@@ -1,9 +1,9 @@
 import chalk from "chalk";
 import { z } from "zod";
 import { Agent, Runner } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 const MovieRecommendation = z.object({
   title: z.string().describe("The movie title"),
@@ -17,15 +17,10 @@ type MovieRecommendation = z.infer<typeof MovieRecommendation>;
 
 const agent = new Agent({
   name: "Movie Recommender",
-  instructions: [
-    "You are a movie recommendation expert.",
-    "Respond ONLY with a JSON object containing exactly these fields:",
-    '{ "title": string, "year": number, "genre": string, "synopsis": string, "rating": number (1-10) }',
-    "Do not include any text outside the JSON object. No markdown, no explanation.",
-  ].join(" "),
-  model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
+  instructions: "You are a movie recommendation expert.",
+  // model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
   // model: openai("gpt-4o-mini"),
-  // model: google("gemini-2.0-flash"),
+  model: google("gemini-2.5-flash"),
   outputSchema: MovieRecommendation,
 });
 

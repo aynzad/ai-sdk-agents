@@ -79,10 +79,16 @@ describe("deterministic-flow", () => {
   it("should execute pipeline stages in order", async () => {
     mockGenerateText
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sampleResearch) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sampleResearch),
+          output: sampleResearch,
+        }),
       )
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sampleQCApproved) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sampleQCApproved),
+          output: sampleQCApproved,
+        }),
       )
       .mockResolvedValueOnce(
         makeGenerateTextResult({
@@ -116,10 +122,16 @@ describe("deterministic-flow", () => {
   it("should pass structured output between stages", async () => {
     mockGenerateText
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sampleResearch) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sampleResearch),
+          output: sampleResearch,
+        }),
       )
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sampleQCApproved) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sampleQCApproved),
+          output: sampleQCApproved,
+        }),
       );
 
     const researchAgent = createResearchAgent();
@@ -146,10 +158,16 @@ describe("deterministic-flow", () => {
 
     mockGenerateText
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sampleResearch) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sampleResearch),
+          output: sampleResearch,
+        }),
       )
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sampleQCApproved) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sampleQCApproved),
+          output: sampleQCApproved,
+        }),
       )
       .mockResolvedValueOnce(makeGenerateTextResult({ text: finalText }));
 
@@ -167,10 +185,16 @@ describe("deterministic-flow", () => {
   it("should halt pipeline if quality check fails", async () => {
     mockGenerateText
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sampleResearch) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sampleResearch),
+          output: sampleResearch,
+        }),
       )
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: JSON.stringify(sampleQCRejected) }),
+        makeGenerateTextResult({
+          text: JSON.stringify(sampleQCRejected),
+          output: sampleQCRejected,
+        }),
       );
 
     const researchResult = await Runner.run(createResearchAgent(), "Research");

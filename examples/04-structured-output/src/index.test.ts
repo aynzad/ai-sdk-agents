@@ -48,7 +48,10 @@ describe("structured-output", () => {
 
   it("should return output matching the Zod schema", async () => {
     mockGenerateText.mockResolvedValue(
-      makeGenerateTextResult({ text: JSON.stringify(sampleMovie) }),
+      makeGenerateTextResult({
+        text: JSON.stringify(sampleMovie),
+        output: sampleMovie,
+      }),
     );
 
     const agent = createMovieAgent();
@@ -63,7 +66,10 @@ describe("structured-output", () => {
 
   it("should have fully typed output properties", async () => {
     mockGenerateText.mockResolvedValue(
-      makeGenerateTextResult({ text: JSON.stringify(sampleMovie) }),
+      makeGenerateTextResult({
+        text: JSON.stringify(sampleMovie),
+        output: sampleMovie,
+      }),
     );
 
     const agent = createMovieAgent();
@@ -75,24 +81,29 @@ describe("structured-output", () => {
     expect(typeof year).toBe("number");
   });
 
-  it("should pass the output schema to generateText", async () => {
+  it("should pass Output.object to generateText when outputSchema is set", async () => {
     mockGenerateText.mockResolvedValue(
-      makeGenerateTextResult({ text: JSON.stringify(sampleMovie) }),
+      makeGenerateTextResult({ output: sampleMovie }),
     );
 
     const agent = createMovieAgent();
     await Runner.run(agent, "Recommend a movie.");
 
     expect(mockGenerateText).toHaveBeenCalledOnce();
+    const callArgs = mockGenerateText.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(callArgs.output).toBeDefined();
   });
 
-  it("should reject output that does not match the schema", async () => {
-    const invalidMovie = { title: "Bad Movie", year: "not-a-number" };
+  it("should return undefined output when AI SDK returns no object", async () => {
     mockGenerateText.mockResolvedValue(
-      makeGenerateTextResult({ text: JSON.stringify(invalidMovie) }),
+      makeGenerateTextResult({ output: undefined }),
     );
 
     const agent = createMovieAgent();
-    await expect(Runner.run(agent, "Recommend a movie.")).rejects.toThrow();
+    const result = await Runner.run(agent, "Recommend a movie.");
+    expect(result.output).toBeUndefined();
   });
 });

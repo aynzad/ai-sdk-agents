@@ -2,12 +2,12 @@ import chalk from "chalk";
 import { tool } from "ai";
 import { z } from "zod";
 import { Agent, Runner, handoff } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 import readline from "node:readline";
 
-const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
+const model = google("gemini-2.5-flash");
 
 const lookupFAQ = tool({
   description: "Look up frequently asked questions about the airline",

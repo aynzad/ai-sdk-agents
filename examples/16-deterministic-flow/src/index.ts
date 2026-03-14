@@ -1,9 +1,9 @@
 import chalk from "chalk";
 import { z } from "zod";
 import { Agent, Runner } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 const ResearchOutput = z.object({
   facts: z.array(z.string()),
@@ -17,28 +17,22 @@ const QualityCheckOutput = z.object({
   score: z.number().min(0).max(10),
 });
 
-const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
+// const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
 // const model = openai("gpt-4o-mini");
-// const model = google("gemini-2.0-flash");
+const model = google("gemini-2.5-flash");
 
 const researchAgent = new Agent({
   name: "Research Agent",
-  instructions: [
+  instructions:
     "You are a research assistant. Given a topic, return key facts about it.",
-    'Respond ONLY with a JSON object: { "facts": ["fact1", "fact2", ...], "topic": "topic name", "confidence": 0.0-1.0 }',
-    "No markdown, no explanation - just the JSON object.",
-  ].join(" "),
   model,
   outputSchema: ResearchOutput,
 });
 
 const qualityCheckAgent = new Agent({
   name: "Quality Check Agent",
-  instructions: [
+  instructions:
     "You are a quality reviewer. Evaluate the accuracy of research facts.",
-    'Respond ONLY with a JSON object: { "approved": true/false, "issues": ["issue1", ...], "score": 0-10 }',
-    "No markdown, no explanation - just the JSON object.",
-  ].join(" "),
   model,
   outputSchema: QualityCheckOutput,
 });

@@ -7,7 +7,8 @@ import {
   regexGuardrail,
   GuardrailTripwiredError,
 } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
+import { google } from "@ai-sdk/google";
 
 const noBlockedWords = keywordGuardrail({
   blockedKeywords: ["hack", "exploit", "malware"],
@@ -24,7 +25,7 @@ const agent = new Agent({
   name: "Safe Agent",
   instructions:
     "You are a helpful assistant. Never include credit card numbers in your responses.",
-  model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
+  model: google("gemini-2.5-flash"),
   inputGuardrails: [noBlockedWords],
   outputGuardrails: [lengthLimit, noCreditCards],
 });

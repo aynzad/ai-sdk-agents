@@ -9,9 +9,9 @@ import {
   ToolGuardrailBehaviorFactory,
   isGuardedTool,
 } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 const noSqlInjection = defineToolInputGuardrail({
   name: "no-sql-injection",
@@ -56,9 +56,9 @@ const agent = new Agent({
   name: "DB Agent",
   instructions:
     "You are a database assistant. Use the dbQuery tool to answer questions about data.",
-  model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
+  // model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
   // model: openai("gpt-4o-mini"),
-  // model: google("gemini-2.0-flash"),
+  model: google("gemini-2.5-flash"),
   tools: { dbQuery },
 });
 

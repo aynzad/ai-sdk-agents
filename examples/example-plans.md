@@ -44,7 +44,7 @@ const ollama = createOllama({ baseURL: process.env.OLLAMA_BASE_URL });
 
 // Pick one:
 const model = openai("gpt-4o-mini");
-// const model = google("gemini-2.0-flash");
+// const model = google("gemini-2.5-flash");
 // const model = ollama(process.env.OLLAMA_MODEL || "qwen3.5");
 ```
 

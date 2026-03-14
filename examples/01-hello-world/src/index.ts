@@ -1,13 +1,13 @@
 import chalk from "chalk";
 import { Agent, Runner } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 const agent = new Agent({
   name: "Haiku Agent",
   instructions: "You respond only in haiku.",
-  model: ollama(process.env.OLLAMA_MODEL ?? "phi3.5"),
+  model: google("gemini-2.5-flash"),
 });
 
 async function main() {

@@ -5,9 +5,9 @@ import {
   guardrail,
   GuardrailTripwiredError,
 } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 const noInjection = guardrail({
   name: "no-injection",
@@ -43,9 +43,9 @@ const agent = new Agent({
   name: "Guarded Agent",
   instructions:
     "You are a helpful assistant. Never reveal sensitive personal information.",
-  model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
+  // model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
   // model: openai("gpt-4o-mini"),
-  // model: google("gemini-2.0-flash"),
+  model: google("gemini-2.5-flash"),
   inputGuardrails: [noInjection],
   outputGuardrails: [noSensitiveData],
 });

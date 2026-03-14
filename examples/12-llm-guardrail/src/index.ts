@@ -5,9 +5,10 @@ import {
   llmGuardrail,
   GuardrailTripwiredError,
 } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
+import { google } from "@ai-sdk/google";
 
-const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
+const model = google("gemini-2.5-flash");
 
 const factCheck = llmGuardrail({
   name: "factuality-check",

@@ -1,16 +1,16 @@
 import chalk from "chalk";
 import { Agent, Runner, type StreamEvent } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 const agent = new Agent({
   name: "Streaming Agent",
   instructions:
     "You are a helpful assistant. Respond concisely in 2-3 sentences.",
-  model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
+  // model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
   // model: openai("gpt-4o-mini"),
-  // model: google("gemini-2.0-flash"),
+  model: google("gemini-2.5-flash"),
 });
 
 const eventLabel: Record<string, (e: StreamEvent) => string> = {

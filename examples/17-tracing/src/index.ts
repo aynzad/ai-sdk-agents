@@ -7,7 +7,8 @@ import {
   consoleTraceProcessor,
   memoryTraceProcessor,
 } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
+import { google } from "@ai-sdk/google";
 
 const getWeather = tool({
   description: "Get the current weather for a location",
@@ -27,7 +28,7 @@ const agent = new Agent({
   name: "Weather Agent",
   instructions:
     "You are a helpful weather assistant. Use the getWeather tool to answer questions about weather.",
-  model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
+  model: google("gemini-2.5-flash"),
   tools: { getWeather },
 });
 

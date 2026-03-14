@@ -1,9 +1,9 @@
 import chalk from "chalk";
 import { z } from "zod";
 import { Agent, Runner } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 const PlanSchema = z.object({
   searchTerms: z.array(z.string()).describe("Search terms to research"),
@@ -15,28 +15,22 @@ const SearchResultSchema = z.object({
   keyFacts: z.array(z.string()),
 });
 
-const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
+// const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
 // const model = openai("gpt-4o-mini");
-// const model = google("gemini-2.0-flash");
+const model = google("gemini-2.5-flash");
 
 const planner = new Agent({
   name: "Planner",
-  instructions: [
+  instructions:
     "Given a research topic, suggest 3 search terms to investigate.",
-    'Respond ONLY with a JSON object: { "searchTerms": ["term1", "term2", "term3"], "topic": "the topic" }',
-    "No markdown, no explanation - just the JSON object.",
-  ].join(" "),
   model,
   outputSchema: PlanSchema,
 });
 
 const searcher = new Agent({
   name: "Searcher",
-  instructions: [
+  instructions:
     "Given a search term, produce a brief summary and key facts with realistic content.",
-    'Respond ONLY with a JSON object: { "summary": "brief summary", "keyFacts": ["fact1", "fact2", ...] }',
-    "No markdown, no explanation - just the JSON object.",
-  ].join(" "),
   model,
   outputSchema: SearchResultSchema,
 });

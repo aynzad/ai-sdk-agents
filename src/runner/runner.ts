@@ -1,4 +1,4 @@
-import { generateText, streamText, stepCountIs } from "ai";
+import { generateText, streamText, stepCountIs, Output } from "ai";
 import type { LanguageModel, ModelMessage, ToolSet } from "ai";
 
 import type {
@@ -171,6 +171,13 @@ export class Runner {
           messages: [...messages],
           tools: Object.keys(agentTools).length > 0 ? agentTools : undefined,
           stopWhen: stepCountIs(currentAgent.config.maxToolRoundtrips ?? 10),
+          ...(currentAgent.config.outputSchema
+            ? {
+                output: Output.object({
+                  schema: currentAgent.config.outputSchema,
+                }),
+              }
+            : {}),
           ...(currentAgent.config.modelSettings ?? {}),
           ...(ctx.signal ? { abortSignal: ctx.signal } : {}),
         });
@@ -348,13 +355,9 @@ export class Runner {
         }
       }
 
-      let output: unknown;
-      if (currentAgent.config.outputSchema) {
-        const parsed: unknown = JSON.parse(genResult.text);
-        output = currentAgent.config.outputSchema.parse(parsed);
-      } else {
-        output = genResult.text;
-      }
+      const output: unknown = currentAgent.config.outputSchema
+        ? genResult.output
+        : genResult.text;
 
       const runResult: RunResult<TOutput> = {
         output: output as TOutput,
@@ -504,6 +507,13 @@ export class Runner {
             messages: [...messages],
             tools: Object.keys(agentTools).length > 0 ? agentTools : undefined,
             stopWhen: stepCountIs(currentAgent.config.maxToolRoundtrips ?? 10),
+            ...(currentAgent.config.outputSchema
+              ? {
+                  output: Output.object({
+                    schema: currentAgent.config.outputSchema,
+                  }),
+                }
+              : {}),
             ...(currentAgent.config.modelSettings ?? {}),
             ...(ctx.signal ? { abortSignal: ctx.signal } : {}),
           });
@@ -715,13 +725,9 @@ export class Runner {
             }
           }
 
-          let output: unknown;
-          if (currentAgent.config.outputSchema) {
-            const parsed: unknown = JSON.parse(finalText);
-            output = currentAgent.config.outputSchema.parse(parsed);
-          } else {
-            output = finalText;
-          }
+          const output: unknown = currentAgent.config.outputSchema
+            ? await sResult.output
+            : finalText;
 
           const runResult: RunResult<TOutput> = {
             output: output as TOutput,

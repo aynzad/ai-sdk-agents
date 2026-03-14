@@ -2,9 +2,9 @@ import chalk from "chalk";
 import { tool } from "ai";
 import { z } from "zod";
 import { Agent, Runner } from "ai-sdk-agents";
-import { ollama } from "ollama-ai-provider-v2";
+// import { ollama } from "ollama-ai-provider-v2";
 // import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 
 const getWeather = tool({
   description: "Get the current weather for a location",
@@ -45,9 +45,9 @@ const agent = new Agent({
   name: "Weather Agent",
   instructions:
     "You are a helpful weather assistant. Use the available tools to answer questions about weather and time zones. Always provide clear, concise answers.",
-  model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
+  // model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
   // model: openai("gpt-4o-mini"),
-  // model: google("gemini-2.0-flash"),
+  model: google("gemini-2.5-flash"),
   tools: { getWeather, getTimeZone },
 });
 
