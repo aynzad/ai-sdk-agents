@@ -780,7 +780,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 3. streaming
+### 3. streaming -- DONE
 
 **Inspired by:** openai-agents-js `basic/` streaming
 
@@ -1425,7 +1425,7 @@ packages:
 4. ~~**Refactor existing library tests** to use the new shared helpers~~ **DONE**
 5. ~~**Run existing tests** to verify nothing breaks (316 tests pass)~~ **DONE**
 6. ~~**Update `pnpm-workspace.yaml`** to include `examples/*`~~ **DONE**
-7. **Build console examples** (02-19) -- each as `examples/<##-name>/` with `src/index.ts`, `src/index.test.ts`, README, .env.example (**01-hello-world DONE**)
+7. **Build console examples** (02-19) -- each as `examples/<##-name>/` with `src/index.ts`, `src/index.test.ts`, README, .env.example (**01-hello-world DONE, 02-agent-with-tools DONE, 03-streaming DONE**)
 8. **Build Next.js examples** (20-22) -- each as `examples/<##-name>/` with Playwright E2E tests
 9. **Create `.github/workflows/ci.yml`** -- library lint, format, type-check, tests
 10. **Create `.github/workflows/ci-examples.yml`** -- auto-discover and test all examples
