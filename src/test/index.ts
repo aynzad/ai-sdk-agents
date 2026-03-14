@@ -69,7 +69,7 @@ export function makeStreamTextResult(overrides: StreamTextMockOverrides = {}) {
     totalTokens: 15,
   };
   const parts = overrides.fullStreamParts ?? [
-    ...textDeltas.map((d) => ({ type: "text-delta" as const, delta: d })),
+    ...textDeltas.map((d) => ({ type: "text-delta" as const, text: d })),
     {
       type: "finish" as const,
       finishReason: overrides.finishReason ?? "stop",

@@ -47,7 +47,7 @@ interface ToolResultEntry {
 
 interface FullStreamPart {
   type: string;
-  delta?: string;
+  text?: string;
   toolCallId?: string;
   toolName?: string;
   input?: unknown;
@@ -514,10 +514,10 @@ export class Runner {
 
           for await (const part of sResult.fullStream as AsyncIterable<FullStreamPart>) {
             if (part.type === "text-delta" && !handoffOccurred) {
-              collectedText.push(part.delta!);
+              collectedText.push(part.text!);
               yield {
                 type: "text_delta",
-                delta: part.delta!,
+                delta: part.text!,
                 agent: currentAgent.name,
               };
             } else if (part.type === "tool-call") {
