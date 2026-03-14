@@ -199,6 +199,15 @@ export class Runner {
 
       for (const step of genResult.steps) {
         for (const tc of step.toolCalls) {
+          try {
+            await currentAgent.config.hooks?.onToolCall?.(
+              ctx,
+              tc.toolName,
+              tc.input,
+            );
+          } catch {
+            /* */
+          }
           steps.push({
             type: "tool_call",
             agent: currentAgent.name,
@@ -207,6 +216,15 @@ export class Runner {
           });
         }
         for (const tr of step.toolResults as ToolResultEntry[]) {
+          try {
+            await currentAgent.config.hooks?.onToolResult?.(
+              ctx,
+              tr.toolName ?? "",
+              tr.output,
+            );
+          } catch {
+            /* */
+          }
           steps.push({
             type: "tool_result",
             agent: currentAgent.name,
@@ -503,6 +521,15 @@ export class Runner {
                 agent: currentAgent.name,
               };
             } else if (part.type === "tool-call") {
+              try {
+                await currentAgent.config.hooks?.onToolCall?.(
+                  ctx,
+                  part.toolName!,
+                  part.input,
+                );
+              } catch {
+                /* */
+              }
               yield {
                 type: "tool_call_start",
                 toolName: part.toolName!,
@@ -520,6 +547,15 @@ export class Runner {
                 },
               });
             } else if (part.type === "tool-result") {
+              try {
+                await currentAgent.config.hooks?.onToolResult?.(
+                  ctx,
+                  part.toolName!,
+                  part.output,
+                );
+              } catch {
+                /* */
+              }
               yield {
                 type: "tool_call_end",
                 toolName: part.toolName!,
