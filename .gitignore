@@ -27,5 +27,13 @@ dist-ssr
 .env
 .env.production
 .env.local
+.env*.local
+
+## Next.js
+.next/
+
+## Playwright
+playwright-report/
+test-results/
 
 /coverage
