@@ -5,9 +5,19 @@ import {
   guardrail,
   keywordGuardrail,
   regexGuardrail,
+  guardedTool,
+  defineToolInputGuardrail,
+  defineToolOutputGuardrail,
+  ToolGuardrailBehaviorFactory,
   GuardrailTripwiredError,
+  isGuardedTool,
 } from "ai-sdk-agents";
-import { createMockModel, makeGenerateTextResult } from "ai-sdk-agents/test";
+import { z } from "zod";
+import {
+  createMockModel,
+  makeGenerateTextResult,
+  createRunContext,
+} from "ai-sdk-agents/test";
 
 const { mockGenerateText } = vi.hoisted(() => {
   return { mockGenerateText: vi.fn() };
@@ -142,5 +152,101 @@ describe("Guarded Chat Agent", () => {
 
     expect(agent.config.inputGuardrails).toHaveLength(2);
     expect(agent.config.outputGuardrails).toHaveLength(1);
+  });
+});
+
+describe("Tool Guardrails", () => {
+  const noSqlInjection = defineToolInputGuardrail({
+    name: "no-sql-injection",
+    execute: ({ input }) => {
+      const raw = JSON.stringify(input).toLowerCase();
+      const suspicious = /('|--|drop\s|delete\s)/i.test(raw);
+      return Promise.resolve(
+        suspicious
+          ? ToolGuardrailBehaviorFactory.throwException(
+              "SQL injection attempt blocked",
+            )
+          : ToolGuardrailBehaviorFactory.allow(),
+      );
+    },
+  });
+
+  const noPii = defineToolOutputGuardrail({
+    name: "no-pii-in-tool-output",
+    execute: ({ output }) => {
+      const text = JSON.stringify(output);
+      const hasPII = /\b\d{3}-\d{2}-\d{4}\b/.test(text);
+      return Promise.resolve(
+        hasPII
+          ? ToolGuardrailBehaviorFactory.rejectContent(
+              "Account data redacted — contains sensitive PII.",
+            )
+          : ToolGuardrailBehaviorFactory.allow(),
+      );
+    },
+  });
+
+  const baseData = {
+    toolName: "lookupAccount",
+    toolCallId: "tc-1",
+    input: {},
+    ctx: createRunContext({ traceId: "test" }),
+  };
+
+  it("should detect guardedTool with isGuardedTool", () => {
+    const tool = guardedTool({
+      description: "Test tool",
+      inputSchema: z.object({ query: z.string() }),
+      execute: ({ query }) => Promise.resolve({ result: query }),
+      inputGuardrails: [],
+    });
+
+    expect(isGuardedTool(tool)).toBe(true);
+  });
+
+  it("input guardrail should allow safe queries", async () => {
+    const result = await noSqlInjection.execute({
+      ...baseData,
+      input: { query: "alice" },
+    });
+    expect(result.type).toBe("allow");
+  });
+
+  it("input guardrail should block SQL injection patterns", async () => {
+    const result = await noSqlInjection.execute({
+      ...baseData,
+      input: { query: "alice'; DROP TABLE users--" },
+    });
+    expect(result.type).toBe("throwException");
+  });
+
+  it("output guardrail should allow safe output", async () => {
+    const result = await noPii.execute({
+      ...baseData,
+      output: { name: "Alice Johnson", plan: "Premium" },
+    });
+    expect(result.type).toBe("allow");
+  });
+
+  it("output guardrail should reject output containing PII", async () => {
+    const result = await noPii.execute({
+      ...baseData,
+      output: { name: "Alice Johnson", ssn: "123-45-6789" },
+    });
+    expect(result.type).toBe("rejectContent");
+  });
+
+  it("guardedTool should attach guardrail metadata", () => {
+    const tool = guardedTool({
+      description: "Look up account",
+      inputSchema: z.object({ query: z.string() }),
+      execute: ({ query }) => Promise.resolve({ name: query }),
+      inputGuardrails: [noSqlInjection],
+      outputGuardrails: [noPii],
+    });
+
+    expect(isGuardedTool(tool)).toBe(true);
+    expect(tool.__toolGuardrails.inputGuardrails).toHaveLength(1);
+    expect(tool.__toolGuardrails.outputGuardrails).toHaveLength(1);
   });
 });

@@ -19,6 +19,8 @@ export default function GuardrailsPage() {
           <Badge color="blue">keyword-block</Badge>
           <Badge color="amber">no-credit-cards</Badge>
           <Badge color="amber">no-ssn</Badge>
+          <Badge color="green">no-sql-injection</Badge>
+          <Badge color="green">no-pii-in-tool-output</Badge>
         </div>
       </header>
 
@@ -43,6 +45,14 @@ export default function GuardrailsPage() {
               />
               <SuggestionChip
                 text="How do I hack a system?"
+                onClick={(t) => setInput(t)}
+              />
+              <SuggestionChip
+                text="Look up account: alice'; DROP TABLE--"
+                onClick={(t) => setInput(t)}
+              />
+              <SuggestionChip
+                text="Look up Alice's account"
                 onClick={(t) => setInput(t)}
               />
             </div>
@@ -138,11 +148,12 @@ function Badge({
   color,
 }: {
   children: React.ReactNode;
-  color: "blue" | "amber";
+  color: "blue" | "amber" | "green";
 }) {
   const colors = {
     blue: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     amber: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+    green: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
   };
   return (
     <span className={`text-xs px-2 py-0.5 rounded-full ${colors[color]}`}>

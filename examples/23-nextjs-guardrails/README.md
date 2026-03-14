@@ -1,14 +1,24 @@
 # nextjs-guardrails
 
-A chat interface with input and output guardrails powered by ai-sdk-agents. Demonstrates how guardrails block harmful inputs and sensitive outputs in a web UI.
+A chat interface with agent-level and tool-level guardrails powered by ai-sdk-agents. Demonstrates how guardrails block harmful inputs, sensitive outputs, and dangerous tool invocations in a web UI.
 
 ## What it demonstrates
 
+### Agent-level guardrails
 - `guardrail()` — custom input guardrail blocking prompt injection
 - `keywordGuardrail()` — built-in helper blocking dangerous keywords (hack, exploit, etc.)
 - `regexGuardrail()` — output guardrails blocking credit card and SSN patterns
 - `Agent` with `inputGuardrails` and `outputGuardrails`
 - `GuardrailTripwiredError` surfaced as error UI in the chat
+
+### Tool-level guardrails
+- `guardedTool()` — wraps a tool with input and output guardrails
+- `defineToolInputGuardrail()` — blocks SQL injection in tool arguments
+- `defineToolOutputGuardrail()` — redacts PII from tool results
+- `ToolGuardrailBehaviorFactory` — `allow()`, `rejectContent()`, `throwException()`
+- `ToolGuardrailTripwiredError` surfaced as error UI in the chat
+
+### Streaming
 - `Runner.stream()` bridged to `useChat` via `createUIMessageStream`
 
 ## Setup
