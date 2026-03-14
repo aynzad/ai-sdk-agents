@@ -24,6 +24,7 @@ export type {
   RunResult,
   StreamEvent,
   StreamResult,
+  CallSettings,
   LanguageModel,
   ModelMessage,
   Tool,

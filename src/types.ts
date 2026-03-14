@@ -1,4 +1,5 @@
 import type {
+  CallSettings,
   LanguageModel,
   ModelMessage,
   Tool,
@@ -23,15 +24,12 @@ export interface RunContext<TContext = unknown> {
 // Model settings
 // ---------------------------------------------------------------------------
 
-export interface ModelSettings {
-  temperature?: number;
-  maxOutputTokens?: number;
-  topP?: number;
-  topK?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  stopSequences?: string[];
-}
+/**
+ * Model-level settings passed through to `generateText` / `streamText`.
+ * Alias for the AI SDK's `CallSettings` so users can configure temperature,
+ * maxOutputTokens, topP, seed, retries, timeout, etc. at the agent level.
+ */
+export type ModelSettings = CallSettings;
 
 // ---------------------------------------------------------------------------
 // Agent hooks
@@ -347,4 +345,11 @@ export class ToolGuardrailTripwiredError extends Error {
 
 // Re-export AI SDK types used across the library so consumers only need
 // to import from this package.
-export type { LanguageModel, ModelMessage, Tool, ToolSet, LanguageModelUsage };
+export type {
+  CallSettings,
+  LanguageModel,
+  ModelMessage,
+  Tool,
+  ToolSet,
+  LanguageModelUsage,
+};
