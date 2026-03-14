@@ -14,12 +14,12 @@ vi.mock("ai", async (importOriginal) => {
   return { ...actual, generateText: mockGenerateText };
 });
 
-describe("multi-agent customer service", () => {
+describe("multi-agent customer service with handoffs", () => {
   beforeEach(() => {
     mockGenerateText.mockReset();
   });
 
-  it("should create a triage agent with handoffs", () => {
+  it("triage agent should have handoffs to FAQ and Booking agents", () => {
     const faqAgent = new Agent({
       name: "FAQ Agent",
       model: createMockModel(),
@@ -43,7 +43,7 @@ describe("multi-agent customer service", () => {
     expect(triageAgent.config.handoffs).toHaveLength(2);
   });
 
-  it("should respond to a simple greeting", async () => {
+  it("should respond to a greeting via Runner.run()", async () => {
     mockGenerateText.mockResolvedValue(
       makeGenerateTextResult({
         text: "Hello! Welcome to our airline. How can I help you today?",
@@ -58,5 +58,24 @@ describe("multi-agent customer service", () => {
 
     const result = await Runner.run(triageAgent, "Hi there!");
     expect(result.output).toContain("Hello");
+    expect(result.agent).toBe("Triage Agent");
+  });
+
+  it("should track steps in the RunResult", async () => {
+    mockGenerateText.mockResolvedValue(
+      makeGenerateTextResult({
+        text: "Welcome! I can help with policies, seats, and more.",
+      }),
+    );
+
+    const triageAgent = new Agent({
+      name: "Triage Agent",
+      model: createMockModel(),
+      instructions: "You are a customer service triage agent.",
+    });
+
+    const result = await Runner.run(triageAgent, "Hello");
+    expect(result.steps.length).toBeGreaterThanOrEqual(1);
+    expect(result.steps[0].agent).toBe("Triage Agent");
   });
 });
