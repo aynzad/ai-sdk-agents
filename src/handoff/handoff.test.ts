@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 import type { HandoffConfig } from "@/types";
 import { Agent } from "@/agent/agent";
 import {
@@ -25,7 +25,7 @@ function createMockAgent(name: string) {
 // Sample messages for filter tests
 // ---------------------------------------------------------------------------
 
-const sampleMessages: CoreMessage[] = [
+const sampleMessages: ModelMessage[] = [
   { role: "system", content: "You are helpful." },
   { role: "user", content: "Hello" },
   { role: "assistant", content: "Hi there!" },
@@ -36,7 +36,7 @@ const sampleMessages: CoreMessage[] = [
         type: "tool-call",
         toolCallId: "tc1",
         toolName: "search",
-        args: { q: "test" },
+        input: { q: "test" },
       },
     ],
   },
@@ -47,7 +47,7 @@ const sampleMessages: CoreMessage[] = [
         type: "tool-result",
         toolCallId: "tc1",
         toolName: "search",
-        result: "found",
+        output: { type: "text" as const, value: "found" },
       },
     ],
   },
@@ -94,7 +94,7 @@ describe("handoff", () => {
 
   it("should set inputFilter when provided", () => {
     const agent = createMockAgent("billing");
-    const filter = (msgs: CoreMessage[]) => msgs.slice(-1);
+    const filter = (msgs: ModelMessage[]) => msgs.slice(-1);
     const config = handoff(agent, { inputFilter: filter });
 
     expect(config.inputFilter).toBe(filter);
@@ -199,7 +199,7 @@ describe("handoffToTool", () => {
     const agent = createMockAgent("billing");
     const { tool } = handoffToTool(agent);
 
-    expect(tool).toHaveProperty("parameters");
+    expect(tool).toHaveProperty("inputSchema");
   });
 
   it("should return sentinel { __handoff: true, targetAgent } from execute", async () => {

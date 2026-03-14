@@ -58,7 +58,7 @@ export class Agent<
   asTool(options?: AsToolOptions): Tool {
     const description = options?.toolDescription ?? `Ask agent "${this.name}"`;
 
-    const parameters = z.object({
+    const inputSchema = z.object({
       message: z.string().describe("Input message for the agent"),
     });
 
@@ -66,7 +66,7 @@ export class Agent<
 
     return {
       description,
-      parameters,
+      inputSchema,
       execute: async ({ message }: { message: string }) => {
         const runnerPath = "../runner/runner.js";
         const mod = (await import(

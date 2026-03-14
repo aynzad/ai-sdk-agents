@@ -76,16 +76,14 @@ export interface ToolGuardrailsMetadata {
   outputGuardrails: ToolOutputGuardrail[];
 }
 
-export type GuardedTool<
-  TParams extends ZodTypeAny = ZodTypeAny,
-  TResult = unknown,
-> = Tool<TParams, TResult> & {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type GuardedTool = Tool<any, any> & {
   __toolGuardrails: ToolGuardrailsMetadata;
 };
 
 interface GuardedToolConfig<TParams extends ZodTypeAny, TResult> {
   description?: string;
-  parameters: TParams;
+  inputSchema: TParams;
   execute: (
     args: z.infer<TParams>,
     options: ToolExecutionOptions,
@@ -96,16 +94,16 @@ interface GuardedToolConfig<TParams extends ZodTypeAny, TResult> {
 
 export function guardedTool<TParams extends ZodTypeAny, TResult>(
   config: GuardedToolConfig<TParams, TResult>,
-): GuardedTool<TParams, TResult> {
+): GuardedTool {
   return {
     description: config.description,
-    parameters: config.parameters,
+    inputSchema: config.inputSchema,
     execute: config.execute,
     __toolGuardrails: {
       inputGuardrails: config.inputGuardrails ?? [],
       outputGuardrails: config.outputGuardrails ?? [],
     },
-  };
+  } as GuardedTool;
 }
 
 // ---------------------------------------------------------------------------
@@ -187,24 +185,20 @@ type ToolExecuteFn = (
   options: ToolExecutionOptions,
 ) => PromiseLike<unknown>;
 
-export function wrapToolWithGuardrails<
-  TContext = unknown,
-  TParams extends ZodTypeAny = ZodTypeAny,
-  TResult = unknown,
->(
+export function wrapToolWithGuardrails<TContext = unknown>(
   toolName: string,
-  tool: GuardedTool<TParams, TResult>,
+  tool: GuardedTool,
   ctx: RunContext<TContext>,
 ): Tool {
   const { inputGuardrails, outputGuardrails } = getToolGuardrails(tool);
   const toolRecord = tool as unknown as Record<string, unknown>;
   const originalExecute: ToolExecuteFn = toolRecord.execute as ToolExecuteFn;
   const description = toolRecord.description as string | undefined;
-  const parameters = toolRecord.parameters as ZodTypeAny;
+  const inputSchema = toolRecord.inputSchema;
 
   return {
     description,
-    parameters,
+    inputSchema,
     execute: async (
       args: Record<string, unknown>,
       options: ToolExecutionOptions,
@@ -212,7 +206,7 @@ export function wrapToolWithGuardrails<
       const baseData = {
         toolName,
         toolCallId: options.toolCallId,
-        args,
+        input: args,
         ctx,
       };
 

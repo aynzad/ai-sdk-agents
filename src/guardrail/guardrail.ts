@@ -4,13 +4,13 @@ import type {
   GuardrailResult,
   RunContext,
 } from "@/types";
-import type { LanguageModelV1, CoreMessage } from "ai";
+import type { LanguageModel, ModelMessage } from "ai";
 
 // ---------------------------------------------------------------------------
 // Content extraction helper
 // ---------------------------------------------------------------------------
 
-function extractTextContent(messages: CoreMessage[]): string[] {
+function extractTextContent(messages: ModelMessage[]): string[] {
   const texts: string[] = [];
   for (const msg of messages) {
     if (typeof msg.content === "string") {
@@ -52,7 +52,7 @@ export function guardrail<TContext = unknown>(config: {
 
 export interface LlmGuardrailConfig<TContext = unknown> {
   name: string;
-  model: LanguageModelV1;
+  model: LanguageModel;
   promptBuilder: (ctx: RunContext<TContext>, input: GuardrailInput) => string;
   tripWhen: (text: string) => boolean;
 }

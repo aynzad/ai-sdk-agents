@@ -12,7 +12,6 @@ import {
   runToolInputGuardrails,
   runToolOutputGuardrails,
   wrapToolWithGuardrails,
-  type GuardedTool,
 } from "./tool-guardrail";
 import { createRunContext } from "@/test";
 
@@ -199,7 +198,7 @@ describe("guardedTool", () => {
   it("should return a valid AI SDK Tool shape", () => {
     const t = guardedTool({
       description: "Test tool",
-      parameters: z.object({ text: z.string() }),
+      inputSchema: z.object({ text: z.string() }),
       execute: async ({ text }) => {
         await tick();
         return text;
@@ -208,14 +207,14 @@ describe("guardedTool", () => {
       outputGuardrails: [outputGuard],
     });
     expect(t.description).toBe("Test tool");
-    expect(t.parameters).toBeDefined();
+    expect(t.inputSchema).toBeDefined();
     expect(typeof t.execute).toBe("function");
   });
 
   it("should attach __toolGuardrails property", () => {
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -223,13 +222,13 @@ describe("guardedTool", () => {
       inputGuardrails: [inputGuard],
       outputGuardrails: [outputGuard],
     });
-    expect((t as GuardedTool).__toolGuardrails).toBeDefined();
+    expect(t.__toolGuardrails).toBeDefined();
   });
 
   it("should store inputGuardrails", () => {
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -237,7 +236,7 @@ describe("guardedTool", () => {
       inputGuardrails: [inputGuard],
       outputGuardrails: [outputGuard],
     });
-    const guards = (t as GuardedTool).__toolGuardrails;
+    const guards = t.__toolGuardrails;
     expect(guards.inputGuardrails.length).toBe(1);
     expect(guards.inputGuardrails[0].name).toBe("ig");
   });
@@ -245,7 +244,7 @@ describe("guardedTool", () => {
   it("should store outputGuardrails", () => {
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -253,7 +252,7 @@ describe("guardedTool", () => {
       inputGuardrails: [inputGuard],
       outputGuardrails: [outputGuard],
     });
-    const guards = (t as GuardedTool).__toolGuardrails;
+    const guards = t.__toolGuardrails;
     expect(guards.outputGuardrails.length).toBe(1);
     expect(guards.outputGuardrails[0].name).toBe("og");
   });
@@ -261,7 +260,7 @@ describe("guardedTool", () => {
   it("should work with only inputGuardrails", () => {
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -276,7 +275,7 @@ describe("guardedTool", () => {
   it("should work with only outputGuardrails", () => {
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -291,7 +290,7 @@ describe("guardedTool", () => {
   it("should work with no guardrails", () => {
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -312,7 +311,7 @@ describe("isGuardedTool", () => {
   it("should return true for guarded tool", () => {
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -330,7 +329,7 @@ describe("isGuardedTool", () => {
   it("should return false for plain AI SDK tool", () => {
     const plainTool = {
       description: "Plain",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }: { x: number }) => {
         await tick();
         return x;
@@ -352,7 +351,7 @@ describe("isGuardedTool", () => {
   it("should return true with empty guardrail arrays", () => {
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -378,7 +377,7 @@ describe("getToolGuardrails", () => {
     });
     const t = guardedTool({
       description: "Test",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }) => {
         await tick();
         return x;
@@ -396,7 +395,7 @@ describe("getToolGuardrails", () => {
   it("should return empty arrays for plain tool", () => {
     const plainTool = {
       description: "Plain",
-      parameters: z.object({ x: z.number() }),
+      inputSchema: z.object({ x: z.number() }),
       execute: async ({ x }: { x: number }) => {
         await tick();
         return x;
@@ -422,7 +421,7 @@ describe("runToolInputGuardrails", () => {
   const baseData = {
     toolName: "test_tool",
     toolCallId: "tc-1",
-    args: { text: "hello" },
+    input: { text: "hello" },
     ctx,
   };
 
@@ -574,7 +573,7 @@ describe("runToolOutputGuardrails", () => {
   const baseData = {
     toolName: "test_tool",
     toolCallId: "tc-1",
-    args: { text: "hello" },
+    input: { text: "hello" },
     output: "result-value",
     ctx,
   };
@@ -667,7 +666,7 @@ describe("wrapToolWithGuardrails", () => {
   ) {
     return guardedTool({
       description: "Wrap test tool",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         return `result:${text}`;
@@ -677,11 +676,11 @@ describe("wrapToolWithGuardrails", () => {
     });
   }
 
-  it("should return a tool with same description and parameters", () => {
+  it("should return a tool with same description and inputSchema", () => {
     const original = makeGuardedToolForWrap();
     const wrapped = wrapToolWithGuardrails("my_tool", original, ctx);
     expect(wrapped.description).toBe("Wrap test tool");
-    expect(wrapped.parameters).toBe(original.parameters);
+    expect(wrapped.inputSchema).toBe(original.inputSchema);
   });
 
   it("should run input guards -> original execute -> output guards in order", async () => {
@@ -704,7 +703,7 @@ describe("wrapToolWithGuardrails", () => {
     });
     const t = guardedTool({
       description: "Order test",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         order.push("execute");
@@ -736,7 +735,7 @@ describe("wrapToolWithGuardrails", () => {
     });
     const t = guardedTool({
       description: "Reject test",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         executeCalled = true;
@@ -769,7 +768,7 @@ describe("wrapToolWithGuardrails", () => {
     });
     const t = guardedTool({
       description: "Throw test",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         return `result:${text}`;
@@ -816,7 +815,7 @@ describe("wrapToolWithGuardrails", () => {
     });
     const t = guardedTool({
       description: "Redact test",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         return `secret:${text}`;
@@ -846,7 +845,7 @@ describe("wrapToolWithGuardrails", () => {
     });
     const t = guardedTool({
       description: "Output throw test",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         executeCalled = true;
@@ -879,7 +878,7 @@ describe("wrapToolWithGuardrails", () => {
     });
     const t = guardedTool({
       description: "Pass test",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         return `result:${text}`;
@@ -902,7 +901,7 @@ describe("wrapToolWithGuardrails", () => {
   it("should pass through when no guardrails attached", async () => {
     const t = guardedTool({
       description: "No guards",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         return `plain:${text}`;
@@ -932,7 +931,7 @@ describe("wrapToolWithGuardrails", () => {
     });
     const t = guardedTool({
       description: "ID test",
-      parameters: schema,
+      inputSchema: schema,
       execute: async ({ text }) => {
         await tick();
         return text;

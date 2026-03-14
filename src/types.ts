@@ -1,6 +1,6 @@
 import type {
-  LanguageModelV1,
-  CoreMessage,
+  LanguageModel,
+  ModelMessage,
   Tool,
   ToolSet,
   LanguageModelUsage,
@@ -25,7 +25,7 @@ export interface RunContext<TContext = unknown> {
 
 export interface ModelSettings {
   temperature?: number;
-  maxTokens?: number;
+  maxOutputTokens?: number;
   topP?: number;
   topK?: number;
   frequencyPenalty?: number;
@@ -68,7 +68,7 @@ export interface AgentConfig<TContext = unknown, TOutput = string> {
   instructions:
     | string
     | ((ctx: RunContext<TContext>) => string | Promise<string>);
-  model: LanguageModelV1 | string;
+  model: LanguageModel;
   tools?: ToolSet;
   handoffs?: HandoffTarget<TContext>[];
   inputGuardrails?: Guardrail<TContext>[];
@@ -97,7 +97,7 @@ export interface HandoffConfig<TContext = unknown> {
   toolName?: string;
   toolDescription?: string;
   onHandoff?: (ctx: RunContext<TContext>) => void | Promise<void>;
-  inputFilter?: (messages: CoreMessage[]) => CoreMessage[];
+  inputFilter?: (messages: ModelMessage[]) => ModelMessage[];
 }
 
 export type HandoffTarget<TContext = unknown> =
@@ -109,7 +109,7 @@ export type HandoffTarget<TContext = unknown> =
 // ---------------------------------------------------------------------------
 
 export interface GuardrailInput {
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   agentName: string;
 }
 
@@ -143,14 +143,14 @@ export type ToolGuardrailBehavior =
 export interface ToolInputGuardrailData<TContext = unknown> {
   toolName: string;
   toolCallId: string;
-  args: unknown;
+  input: unknown;
   ctx: RunContext<TContext>;
 }
 
 export interface ToolOutputGuardrailData<TContext = unknown> {
   toolName: string;
   toolCallId: string;
-  args: unknown;
+  input: unknown;
   output: unknown;
   ctx: RunContext<TContext>;
 }
@@ -229,7 +229,7 @@ export interface RunHooks<TContext = unknown> {
 export interface RunConfig<TContext = unknown> {
   maxTurns?: number;
   context?: TContext;
-  model?: LanguageModelV1 | string;
+  model?: LanguageModel;
   tracing?: TracingConfig;
   hooks?: RunHooks<TContext>;
   signal?: AbortSignal;
@@ -246,7 +246,10 @@ export interface RunResult<TOutput = string> {
   output: TOutput;
   agent: string;
   steps: RunStep[];
-  usage: LanguageModelUsage;
+  usage: Pick<
+    LanguageModelUsage,
+    "inputTokens" | "outputTokens" | "totalTokens"
+  >;
   traceId?: string;
 }
 
@@ -259,7 +262,7 @@ export type StreamEvent =
   | { type: "agent_end"; agent: string; timestamp: number }
   | { type: "text_delta"; delta: string; agent: string }
   | { type: "tool_call_start"; toolName: string; agent: string; args: unknown }
-  | { type: "tool_call_end"; toolName: string; agent: string; result: unknown }
+  | { type: "tool_call_end"; toolName: string; agent: string; output: unknown }
   | { type: "handoff"; from: string; to: string; timestamp: number }
   | { type: "guardrail_start"; name: string; agent: string }
   | { type: "guardrail_end"; name: string; tripwired: boolean }
@@ -344,4 +347,4 @@ export class ToolGuardrailTripwiredError extends Error {
 
 // Re-export AI SDK types used across the library so consumers only need
 // to import from this package.
-export type { LanguageModelV1, CoreMessage, Tool, ToolSet, LanguageModelUsage };
+export type { LanguageModel, ModelMessage, Tool, ToolSet, LanguageModelUsage };

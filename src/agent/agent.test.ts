@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { z } from "zod";
-import type { LanguageModelV1 } from "ai";
+import type { LanguageModel } from "ai";
 import { Agent } from "./agent";
 import { createMockModel, createRunContext } from "@/test";
 
@@ -47,7 +47,7 @@ describe("Agent", () => {
           new Agent({
             name: "my-agent",
             instructions: "test",
-            model: undefined as unknown as LanguageModelV1,
+            model: undefined as unknown as LanguageModel,
           }),
       ).toThrow();
     });
@@ -277,7 +277,7 @@ describe("Agent", () => {
   });
 
   describe("asTool", () => {
-    it("should return an object with parameters, description, and execute", () => {
+    it("should return an object with inputSchema, description, and execute", () => {
       const agent = new Agent({
         name: "helper",
         instructions: "You help.",
@@ -286,12 +286,12 @@ describe("Agent", () => {
 
       const tool = agent.asTool();
 
-      expect(tool).toHaveProperty("parameters");
+      expect(tool).toHaveProperty("inputSchema");
       expect(tool).toHaveProperty("description");
       expect(tool).toHaveProperty("execute");
     });
 
-    it("should have a parameters schema that accepts { message: string }", () => {
+    it("should have a inputSchema schema that accepts { message: string }", () => {
       const agent = new Agent({
         name: "helper",
         instructions: "You help.",
@@ -299,13 +299,13 @@ describe("Agent", () => {
       });
 
       const tool = agent.asTool();
-      const schema = tool.parameters as z.ZodType;
+      const schema = tool.inputSchema as z.ZodType;
       const result = schema.safeParse({ message: "hello" });
 
       expect(result.success).toBe(true);
     });
 
-    it("should reject invalid input in parameters schema", () => {
+    it("should reject invalid input in inputSchema schema", () => {
       const agent = new Agent({
         name: "helper",
         instructions: "You help.",
@@ -313,7 +313,7 @@ describe("Agent", () => {
       });
 
       const tool = agent.asTool();
-      const schema = tool.parameters as z.ZodType;
+      const schema = tool.inputSchema as z.ZodType;
       const result = schema.safeParse({ wrong: 123 });
 
       expect(result.success).toBe(false);

@@ -7,7 +7,7 @@ Build the library in this exact order. Each phase produces working, testable cod
 **File:** `src/types.ts`
 **Status:** ✅ Complete
 
-This file defines every interface and error class the library uses. It imports only from `ai` (for `LanguageModelV1`) and `zod` (for `z.ZodType`). All other files import their types from here.
+This file defines every interface and error class the library uses. It imports only from `ai` (for `LanguageModel`, `ModelMessage`, etc.) and `zod` (for `z.ZodType`). All other files import their types from here.
 
 Key types to understand before building anything:
 
@@ -22,7 +22,7 @@ Key types to understand before building anything:
 - `TraceProcessor` / `TraceSpan` — tracing infrastructure types
 - `GuardrailTripwiredError`, `MaxTurnsExceededError`, `HandoffError` — error classes
 
-**Verify:** Types file should import ONLY from `ai` and `zod`. No internal imports.
+**Verify:** Types file should import ONLY from `ai` and `zod`. No internal imports. Uses `LanguageModel` (version-agnostic) and `ModelMessage` from `ai`.
 
 ---
 
@@ -146,7 +146,7 @@ Guardrails validate inputs and outputs with tripwire-based halting. When any gua
    - `maxLengthGuardrail({ maxLength })` — trips if any message content string exceeds `maxLength` characters. Boundary (exactly at limit) does not trip.
    - `regexGuardrail({ pattern, reason? })` — trips if regex matches any message content string. Uses custom reason if provided, otherwise generates a default reason mentioning the pattern.
 
-5. **`extractTextContent(messages)` (internal)** — helper that extracts string content from `CoreMessage[]`, handling both `string` content and `ContentPart[]` arrays (extracting `type: 'text'` parts). Used by all built-in guardrails.
+5. **`extractTextContent(messages)` (internal)** — helper that extracts string content from `ModelMessage[]`, handling both `string` content and `ContentPart[]` arrays (extracting `type: 'text'` parts). Used by all built-in guardrails.
 
 **Three guardrail scopes (enforced by Runner, not by guardrail module):**
 
@@ -298,12 +298,12 @@ The Runner is the heart of the library. It orchestrates the full agent execution
 #### Architecture & Design Decisions
 
 - **Static class** (no instantiation) — stateless by design. All state lives in local variables within `run()`.
-- **Model resolution:** `LanguageModelV1` objects pass through; string identifiers throw with a helpful error (provider registry is a future feature).
-- **AI SDK delegation:** All LLM calls use `generateText` with `maxSteps` for tool loops — we don't reimplement the tool loop.
+- **Model resolution:** `LanguageModel` instances pass through; string identifiers throw with a helpful error (provider registry is a future feature).
+- **AI SDK delegation:** All LLM calls use `generateText` with `stopWhen: stepCountIs(N)` for tool loops — we don't reimplement the tool loop.
 - **Handoff detection:** Works by inspecting `result.steps[].toolResults` after `generateText` returns. Tool results containing the sentinel `{ __handoff: true, targetAgent }` trigger the handoff for the NEXT turn. AI SDK executes the handoff tool (which returns the sentinel), but the actual agent switch happens between `generateText` calls.
 - **Context is mutable** (turn, agent update each iteration) — intentional for simplicity.
 - **Default maxTurns:** 10 (configurable via `RunConfig.maxTurns`).
-- **Input type:** `run()` accepts both `string` (converted to a single user message) and `CoreMessage[]`.
+- **Input type:** `run()` accepts both `string` (converted to a single user message) and `ModelMessage[]`.
 
 ---
 
@@ -328,17 +328,17 @@ mockGenerateText.mockResolvedValue({
   text: "Hello!",
   steps: [
     {
-      stepType: "initial",
       text: "Hello!",
       toolCalls: [],
       toolResults: [],
       finishReason: "stop",
-      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
     },
   ],
   toolCalls: [],
   toolResults: [],
-  usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+  usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+  totalUsage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
   finishReason: "stop",
   response: { id: "resp-1", model: "test-model", timestamp: new Date() },
 });
@@ -349,13 +349,12 @@ For handoff scenarios, tool results contain the sentinel:
 ```typescript
 steps: [
   {
-    stepType: "tool-result",
     toolCalls: [
       {
         type: "tool-call",
         toolCallId: "tc1",
         toolName: "transfer_to_billing",
-        args: {},
+        input: {},
       },
     ],
     toolResults: [
@@ -363,7 +362,7 @@ steps: [
         type: "tool-result",
         toolCallId: "tc1",
         toolName: "transfer_to_billing",
-        result: { __handoff: true, targetAgent: "billing" },
+        output: { __handoff: true, targetAgent: "billing" },
       },
     ],
     // ...
@@ -371,7 +370,7 @@ steps: [
 ];
 ```
 
-The mock model uses the existing `createMockModel()` pattern — it's just a `LanguageModelV1` shape that gets passed through to `generateText` (which is mocked).
+The mock model uses the existing `createMockModel()` pattern — it's just a `LanguageModel` shape (cast via `as unknown as LanguageModel`) that gets passed through to `generateText` (which is mocked).
 
 ---
 
@@ -380,9 +379,9 @@ The mock model uses the existing `createMockModel()` pattern — it's just a `La
 ```
 1. INITIALIZE:
    - Resolve maxTurns from config (default: 10)
-   - Convert string input to CoreMessage[] if needed
+   - Convert string input to ModelMessage[] if needed
    - Create messages array from input
-   - Initialize: steps=[], usage={prompt:0,completion:0,total:0}, turn=0
+   - Initialize: steps=[], usage={inputTokens:0,outputTokens:0,totalTokens:0}, turn=0
    - Resolve currentAgent from agent param
    - Create Trace (if tracing not disabled)
    - Build RunContext
@@ -416,18 +415,18 @@ The mock model uses the existing `createMockModel()` pattern — it's just a `La
    h. RESOLVE MODEL:
       - Use config.model (RunConfig override) ?? agent's config.model
       - If string → throw Error('String model identifiers not yet supported...')
-      - If LanguageModelV1 → use directly
+      - If LanguageModel instance → use directly
 
    i. CALL AI SDK generateText():
       - model, system: resolved instructions, messages,
-        tools: merged toolset, maxSteps: agent.config.maxToolRoundtrips,
-        modelSettings spread (temperature, maxTokens, etc.),
+        tools: merged toolset, stopWhen: stepCountIs(agent.config.maxToolRoundtrips),
+        modelSettings spread (temperature, maxOutputTokens, etc.),
         abortSignal: ctx.signal
 
    j. ACCUMULATE USAGE:
-      - usage.promptTokens += result.usage.promptTokens
-      - usage.completionTokens += result.usage.completionTokens
-      - usage.totalTokens += result.usage.totalTokens
+      - usage.inputTokens += result.totalUsage.inputTokens
+      - usage.outputTokens += result.totalUsage.outputTokens
+      - usage.totalTokens += result.totalUsage.totalTokens
 
    k. RECORD TOOL STEPS from result.steps:
       - For each step in result.steps:
@@ -436,7 +435,7 @@ The mock model uses the existing `createMockModel()` pattern — it's just a `La
 
    l. CHECK FOR HANDOFFS:
       - Iterate ALL toolResults across ALL result.steps
-      - For each toolResult, check isHandoffResult(toolResult.result)
+      - For each toolResult, check isHandoffResult(toolResult.output)
       - If handoff found:
         → Look up handoffConfig from toolName → config map
         → Fire handoffConfig.onHandoff?.(ctx)
@@ -510,7 +509,7 @@ Tests live in `src/runner/runner.test.ts`. All tests mock `generateText` at modu
 | #   | Test name                                                        | What it verifies                                         |
 | --- | ---------------------------------------------------------------- | -------------------------------------------------------- |
 | 1   | should return text output for simple agent run with string input | String input converted to user message, text returned    |
-| 2   | should pass CoreMessage array input directly                     | CoreMessage[] forwarded to generateText messages         |
+| 2   | should pass ModelMessage array input directly                    | ModelMessage[] forwarded to generateText messages        |
 | 3   | should return RunResult with correct shape                       | Output has output, agent, steps, usage, traceId          |
 | 4   | should use agent model when no config override                   | generateText called with agent's model                   |
 | 5   | should use config model override over agent model                | RunConfig.model takes precedence                         |
@@ -523,11 +522,11 @@ Tests live in `src/runner/runner.test.ts`. All tests mock `generateText` at modu
 | #   | Test name                                           | What it verifies                              |
 | --- | --------------------------------------------------- | --------------------------------------------- |
 | 1   | should pass agent tools to generateText             | tools arg includes agent's tools              |
-| 2   | should set maxSteps from agent maxToolRoundtrips    | maxSteps matches agent config                 |
+| 2   | should set stopWhen from agent maxToolRoundtrips    | stopWhen set from agent config                |
 | 3   | should record tool calls as steps                   | RunResult.steps contains tool_call entries    |
 | 4   | should record tool results as steps                 | RunResult.steps contains tool_result entries  |
 | 5   | should accumulate steps across multi-step tool loop | Multiple steps from generateText all recorded |
-| 6   | should respect custom maxToolRoundtrips             | Non-default value forwarded to maxSteps       |
+| 6   | should respect custom maxToolRoundtrips             | Non-default value forwarded to stopWhen       |
 
 **Group 3: Handoff Detection & Routing (10 tests)**
 
@@ -633,7 +632,7 @@ Each sub-task follows red-green-refactor. Write the tests for that group first, 
 | ----- | ------------------------------------------------------------------------------------ | ----------------- | -------------- |
 | 1     | Scaffold: `src/runner/runner.ts` with empty Runner class, stub run/stream            | Group 1 tests 1-3 | None           |
 | 2     | Basic run loop: model resolution, instructions, single generateText, build RunResult | Group 1 tests 4-8 | Sub-task 1     |
-| 3     | Tool integration: merge tools, pass maxSteps, record tool steps                      | Group 2 (all 6)   | Sub-task 2     |
+| 3     | Tool integration: merge tools, pass stopWhen, record tool steps                      | Group 2 (all 6)   | Sub-task 2     |
 | 4     | Turn management: loop with maxTurns, counter                                         | Group 7 (all 4)   | Sub-task 2     |
 | 5     | Handoff system: build handoff tools, detect sentinels, switch agents, filters        | Group 3 (all 10)  | Sub-tasks 3, 4 |
 | 6     | Input guardrails: run before generateText, throw on trip                             | Group 4 (all 5)   | Sub-task 2     |
@@ -660,13 +659,13 @@ Each sub-task follows red-green-refactor. Write the tests for that group first, 
 
 1. **Circular dependency with Agent:** `Agent.asTool()` lazy-imports `Runner` via `import('../runner/runner.js')`. The Runner imports Agent normally. This is already handled.
 
-2. **generateText result.steps structure (AI SDK v4):** Each step has `{ stepType, text, toolCalls[], toolResults[], finishReason, usage }`. Tool calls have `{ type: 'tool-call', toolCallId, toolName, args }`. Tool results have `{ type: 'tool-result', toolCallId, toolName, result }`.
+2. **generateText result.steps structure (AI SDK v6):** Each step has `{ text, toolCalls[], toolResults[], finishReason, usage }`. Tool calls have `{ type: 'tool-call', toolCallId, toolName, input }`. Tool results have `{ type: 'tool-result', toolCallId, toolName, output }`. Cumulative usage is in `result.totalUsage`.
 
-3. **Handoff detection in result.steps:** After `generateText` returns, iterate `result.steps[].toolResults` and check each with `isHandoffResult(tr.result)`. First tries matching by `toolName` against the handoff map, then falls back to matching by `targetAgent` name.
+3. **Handoff detection in result.steps:** After `generateText` returns, iterate `result.steps[].toolResults` and check each with `isHandoffResult(tr.output)`. First tries matching by `toolName` against the handoff map, then falls back to matching by `targetAgent` name.
 
-4. **Message building:** The Runner maintains a `messages: CoreMessage[]` array. String input becomes `[{ role: 'user', content: input }]`. Passes `[...messages]` (snapshot) to `generateText` to avoid mutation interference. After each non-handoff turn, appends `{ role: 'assistant', content: result.text }`. On handoff, optionally filters messages via `inputFilter`.
+4. **Message building:** The Runner maintains a `messages: ModelMessage[]` array. String input becomes `[{ role: 'user', content: input }]`. Passes `[...messages]` (snapshot) to `generateText` to avoid mutation interference. After each non-handoff turn, appends `{ role: 'assistant', content: result.text }`. On handoff, optionally filters messages via `inputFilter`.
 
-5. **Model settings passthrough:** Spread `agent.config.modelSettings` into the `generateText` call (temperature, maxTokens, etc.).
+5. **Model settings passthrough:** Spread `agent.config.modelSettings` into the `generateText` call (temperature, maxOutputTokens, etc.).
 
 6. **AbortSignal:** Forward `config.signal` to `generateText`'s `abortSignal` parameter and to `RunContext.signal`.
 
@@ -675,7 +674,7 @@ Each sub-task follows red-green-refactor. Write the tests for that group first, 
 **Test coverage (64 tests):**
 
 - Basic Execution: string/message input, RunResult shape, model resolution, instructions (8 tests)
-- Tool Execution: tool passthrough, maxSteps, step recording (6 tests)
+- Tool Execution: tool passthrough, stopWhen, step recording (6 tests)
 - Handoff Detection & Routing: sentinel detection, agent switching, filters, callbacks, A→B→C (10 tests)
 - Input Guardrails: pre-execution validation, tripwire throwing, hook firing (5 tests)
 - Output Guardrails: post-output validation, handoff bypass (5 tests)
@@ -762,8 +761,8 @@ export type {
   RunResult,
   StreamEvent,
   StreamResult,
-  LanguageModelV1,
-  CoreMessage,
+  LanguageModel,
+  ModelMessage,
   Tool,
   ToolSet,
   LanguageModelUsage,
@@ -790,7 +789,7 @@ export {
 - No sub-module `index.ts` barrels — imports go directly to source files (`./agent/agent`, not `./agent/index`)
 - `LlmGuardrailConfig` exported as a type-only re-export (needed for custom LLM guardrails)
 - `SpanHandle` and `SpanConfig` exported as types from tracing (not from `types.ts` since they are tracing-specific)
-- AI SDK types (`LanguageModelV1`, `CoreMessage`, `Tool`, `ToolSet`, `LanguageModelUsage`) re-exported so consumers don't need to import `ai` directly for type annotations
+- AI SDK types (`LanguageModel`, `ModelMessage`, `Tool`, `ToolSet`, `LanguageModelUsage`) re-exported so consumers don't need to import `ai` directly for type annotations
 - `src/index.ts` excluded from coverage metrics in `vitest.config.ts` (pure re-exports, no logic)
 - No dedicated barrel tests — the file is pure re-exports with zero logic; the public API is already exercised by module-level tests
 
@@ -835,7 +834,7 @@ Replaced the synthetic `Runner.stream()` wrapper (which called `run()` and emitt
    a. yield 'agent_start'
    b. Run input guardrails (throw if tripped → caught as 'error' event)
    c. Resolve instructions, build tools + handoff tools, resolve model
-   d. Call streamText({ model, system, messages, tools, maxSteps })
+   d. Call streamText({ model, system, messages, tools, stopWhen })
    e. Consume fullStream:
       - 'text-delta' → yield 'text_delta' (suppressed after handoff detected)
       - 'tool-call' → yield 'tool_call_start', record RunStep
@@ -860,7 +859,7 @@ Replaced the synthetic `Runner.stream()` wrapper (which called `run()` and emitt
 - `stream()` does NOT wrap `run()` — it has its own full orchestration loop using `streamText`. This ensures real-time event delivery rather than synthetic after-the-fact events.
 - `fullStream` is consumed as `AsyncIterable<FullStreamPart>` with a type cast to handle dynamic tool typing (the `TextStreamPart<TOOLS>` generic narrows differently when tools are optional).
 - Text deltas are suppressed after handoff detection within the same turn. The model may continue generating after a handoff tool returns its sentinel, but those tokens are meaningless.
-- Usage is accumulated via `await streamResult.usage` after the full stream is consumed (not from individual `step-finish` events), matching how `run()` accumulates from `generateText().usage`.
+- Usage is accumulated via `await streamResult.totalUsage` after the full stream is consumed, matching how `run()` accumulates from `generateText().totalUsage`.
 - Error handling wraps the entire while-loop in a try/catch that yields an `error` event and rejects the result promise.
 - `run()` is completely untouched — both methods coexist with independent orchestration loops.
 
@@ -888,7 +887,7 @@ The `makeStreamTextResult()` helper creates a mock return value with:
 **Test coverage (32 tests across 8 sub-groups):**
 
 - Basic Streaming: StreamResult shape, real multi-token deltas, event ordering, result promise, streamText called (not generateText), model/instructions passthrough (6 tests)
-- Tool Call Streaming: tool_call_start/end events from fullStream, tool steps in RunResult, tools/maxSteps passthrough, multiple tools (5 tests)
+- Tool Call Streaming: tool_call_start/end events from fullStream, tool steps in RunResult, tools/stopWhen passthrough, multiple tools (5 tests)
 - Handoff Streaming: sentinel detection + agent switch, handoff event emission, agent_start/end per agent, inputFilter, text suppression after handoff, onHandoff callbacks (6 tests)
 - Guardrails in Stream: input guardrails before streamText, error event on trip, output guardrails after text, skip on handoff turn (4 tests)
 - Usage/Schema/Result: usage accumulation across handoffs, output schema parsing, zero usage, result promise rejection (4 tests)
@@ -901,7 +900,7 @@ The `makeStreamTextResult()` helper creates a mock return value with:
 
 | File | Change |
 |------|--------|
-| `src/runner/runner.ts` | Added `streamText` import, `FullStreamPart` interface, rewrote `stream()` (~200 lines) |
+| `src/runner/runner.ts` | Added `streamText`/`stepCountIs` imports, `FullStreamPart` interface, rewrote `stream()` (~200 lines) |
 | `src/runner/runner.test.ts` | Added `mockStreamText` mock, `makeStreamTextResult` helper, replaced 5 synthetic tests with 32 real streaming tests |
 
 **Build output:**
@@ -918,7 +917,7 @@ The `makeStreamTextResult()` helper creates a mock return value with:
 - **Unit tests** for each module independently (mock AI SDK calls)
 - **Integration tests** that run real agent loops with mock models
 - **Test files** live next to source: `src/agent/agent.test.ts`, etc.
-- **Mock model** — create a minimal `LanguageModelV1` mock that returns canned responses
+- **Mock model** — create a minimal `LanguageModel` mock (via `as unknown as LanguageModel` cast) that returns canned responses
 - **No real API calls in CI** — all tests use mocks
 
 ---
@@ -938,7 +937,7 @@ Tool guardrails wrap individual function tools, running validation **before** ex
 
 **How it works with AI SDK:**
 
-Since `generateText`/`streamText` handle tool loops internally via `maxSteps`, tool guardrails are implemented by **wrapping each tool's `execute` function** at runtime in the Runner. The wrapped execute runs input guardrails before the real execute and output guardrails after.
+Since `generateText`/`streamText` handle tool loops internally via `stopWhen`, tool guardrails are implemented by **wrapping each tool's `execute` function** at runtime in the Runner. The wrapped execute runs input guardrails before the real execute and output guardrails after.
 
 ---
 
@@ -947,8 +946,8 @@ Since `generateText`/`streamText` handle tool loops internally via `maxSteps`, t
 **New types in `src/types.ts`:**
 
 - `ToolGuardrailBehavior` — discriminated union: `{ type: 'allow' }` | `{ type: 'rejectContent', message }` | `{ type: 'throwException', reason?, metadata? }`
-- `ToolInputGuardrailData<TContext>` — data passed to input guardrails: `{ toolName, toolCallId, args, ctx }`
-- `ToolOutputGuardrailData<TContext>` — data passed to output guardrails: `{ toolName, toolCallId, args, output, ctx }`
+- `ToolInputGuardrailData<TContext>` — data passed to input guardrails: `{ toolName, toolCallId, input, ctx }`
+- `ToolOutputGuardrailData<TContext>` — data passed to output guardrails: `{ toolName, toolCallId, input, output, ctx }`
 - `ToolInputGuardrail<TContext>` — `{ name, execute: (data) => Promise<ToolGuardrailBehavior> }`
 - `ToolOutputGuardrail<TContext>` — `{ name, execute: (data) => Promise<ToolGuardrailBehavior> }`
 - `ToolGuardrailTripwiredError` — error class with `guardrailName`, `toolName`, `reason?`, `metadata?`
@@ -974,7 +973,7 @@ Since `generateText`/`streamText` handle tool loops internally via `maxSteps`, t
 
 8. **`runToolOutputGuardrails(guardrails, data)`** — same sequential pattern for output guardrails.
 
-9. **`wrapToolWithGuardrails(toolName, tool, ctx)`** — creates a new tool with the same `description`/`parameters` but a wrapped `execute` function that:
+9. **`wrapToolWithGuardrails(toolName, tool, ctx)`** — creates a new tool with the same `description`/`inputSchema` but a wrapped `execute` function that:
    - Runs input guardrails sequentially before the original execute
    - On `rejectContent`: returns the rejection message as the tool result (skips execute)
    - On `throwException`: throws `ToolGuardrailTripwiredError`
@@ -1077,7 +1076,7 @@ export type {
 
 These are explicitly OUT OF SCOPE for the initial release but the architecture should not prevent them:
 
-- **String model identifiers** — `model: 'anthropic/claude-sonnet'` with provider registry
+- **String model identifiers** — `model: 'anthropic/claude-sonnet'` string model support (the `LanguageModel` type accepts strings; the Runner currently throws but could pass them through to AI SDK's gateway)
 - **MCP integration** — `@ai-sdk/mcp` tool sources on agents
 - **Middleware** — `wrapLanguageModel` integration for per-agent middleware chains
 - **Sessions / memory** — conversation persistence across runs

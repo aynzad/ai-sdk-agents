@@ -26,18 +26,47 @@ A thin (~800-1200 lines), zero-runtime-dependency TypeScript library that adds m
 
 ---
 
+## AI SDK Version
+
+This library targets **Vercel AI SDK 6** (`ai@^6.0.0`). Key APIs used from the SDK:
+
+- `generateText`, `streamText`, `stepCountIs` — core generation and step control
+- `LanguageModel` — version-agnostic model type (accepts V2, V3, and string gateway IDs)
+- `ModelMessage` — message type (replaces the removed `CoreMessage` from v4)
+- `Tool`, `ToolSet`, `ToolExecutionOptions` — tool definitions
+- `LanguageModelUsage` — token usage tracking
+
+Provider packages (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`) are at `^3.0.0`.
+
+---
+
 ## Tech Stack
 
 - **Runtime:** Node.js >= 18
 - **Language:** TypeScript
+- **AI SDK:** `ai` >= 6.0.0 (Vercel AI SDK 6)
 - **Build:** Vite lib mode (dual CJS/ESM via Rollup)
 - **Types:** vite-plugin-dts (bundled .d.ts)
 - **Testing:** Vitest
 - **Linting:** ESLint + @typescript-eslint
 - **Formatting:** Prettier
+- **Docs:** Astro Starlight + TypeDoc (auto-generated API reference)
 - **Releases:** Changesets
 - **CI:** GitHub Actions
-- **Peer deps:** `ai` >= 4.0.0, `zod` >= 3.0.0
+- **Peer deps:** `ai` >= 6.0.0, `zod` >= 3.25.76
+
+---
+
+## Workspace Structure
+
+This is a pnpm workspace monorepo with three packages:
+
+```
+pnpm-workspace.yaml
+├── "."              # Root — the ai-sdk-agents library
+├── "docs"           # Astro Starlight documentation site
+└── "examples/*"     # Runnable example projects
+```
 
 ---
 
@@ -64,7 +93,7 @@ A thin (~800-1200 lines), zero-runtime-dependency TypeScript library that adds m
 └──┬──┘  └───────┘  └────────┘  └────────┘
    │
 ┌──▼──────────────────────────────────────────────┐
-│              Vercel AI SDK                       │
+│              Vercel AI SDK 6                     │
 │  generateText() / streamText() / tool()          │
 │  Any provider: OpenAI, Anthropic, Google, etc.   │
 └─────────────────────────────────────────────────┘
@@ -73,6 +102,8 @@ A thin (~800-1200 lines), zero-runtime-dependency TypeScript library that adds m
 ---
 
 ## Package Scripts
+
+### Library (root)
 
 | Script           | Command                                                 | Purpose                         |
 | ---------------- | ------------------------------------------------------- | ------------------------------- |
@@ -89,26 +120,98 @@ A thin (~800-1200 lines), zero-runtime-dependency TypeScript library that adds m
 | `prepublishOnly` | `pnpm run build`                                        | Auto-build before publish       |
 | `changeset`      | `changeset`                                             | Create a new changeset          |
 | `release`        | `changeset publish`                                     | Publish via changesets          |
+| `build:ci`       | `pnpm run build`                                        | CI build alias                  |
+
+### Examples
+
+| Script               | Command                             | Purpose                                |
+| -------------------- | ----------------------------------- | -------------------------------------- |
+| `examples:dev`       | `bash scripts/examples-dev.sh`      | Run an example (e.g. `pnpm examples:dev 1`)  |
+| `examples:test`      | `bash scripts/examples-test.sh`     | Run example tests                      |
+| `examples:lint`      | `bash scripts/examples-lint.sh`     | Lint example source files              |
+| `examples:format`    | `bash scripts/examples-format.sh`   | Format example source files            |
+| `examples:type-check`| `bash scripts/examples-type-check.sh` | Type-check example projects          |
+
+### Docs (Astro Starlight)
+
+| Script               | Command                              | Purpose                            |
+| -------------------- | ------------------------------------ | ---------------------------------- |
+| `docs:dev`           | `pnpm --filter docs dev`            | Start docs dev server              |
+| `docs:build`         | `pnpm --filter docs build`          | Build docs for production          |
+| `docs:scripts:check` | `pnpm --filter docs astro check`    | Type-check Astro/MDX content       |
+
+### Aggregate
+
+| Script       | Command                                                                  | Purpose                           |
+| ------------ | ------------------------------------------------------------------------ | --------------------------------- |
+| `check-all`  | `format + type-check + lint + docs check + examples format/lint/type-check` | Run all checks across workspace   |
+| `test-all`   | `pnpm run test && pnpm run examples:test`                                | Run all tests (lib + examples)    |
 
 ---
 
-## Source File Map
+## Project File Map
 
 ```
-src/
-├── types.ts              # All shared types, interfaces, and error classes
-├── index.ts              # Public API barrel export
-├── agent/
-│   ├── agent.ts          # Agent class (declarative config, asTool, clone)
-├── handoff/
-│   ├── handoff.ts        # handoff(), handoffToTool(), handoffFilters, helpers
-├── guardrail/
-│   ├── guardrail.ts      # guardrail(), llmGuardrail(), built-ins
-│   ├── tool-guardrail.ts # guardedTool(), defineToolInput/OutputGuardrail(), BehaviorFactory
-├── runner/
-│   ├── runner.ts         # Runner.run(), Runner.stream() — the orchestration
-├── tracing/
-│   ├── tracing.ts        # Trace class, trace(), processors, span management
+ai-sdk-agents/
+├── src/                          # Library source code
+│   ├── types.ts                  # All shared types, interfaces, and error classes
+│   ├── index.ts                  # Public API barrel export
+│   ├── agent/
+│   │   └── agent.ts              # Agent class (declarative config, asTool, clone)
+│   ├── handoff/
+│   │   └── handoff.ts            # handoff(), handoffToTool(), handoffFilters, helpers
+│   ├── guardrail/
+│   │   ├── guardrail.ts          # guardrail(), llmGuardrail(), built-ins
+│   │   └── tool-guardrail.ts     # guardedTool(), defineToolInput/OutputGuardrail()
+│   ├── runner/
+│   │   └── runner.ts             # Runner.run(), Runner.stream() — the orchestration
+│   ├── tracing/
+│   │   └── tracing.ts            # Trace class, trace(), processors, span management
+│   └── test/
+│       └── index.ts              # Test helpers: createMockModel, makeGenerateTextResult, etc.
+│
+├── examples/                     # Runnable example projects (workspace packages)
+│   ├── 01-hello-world/           # Simplest agent: name + model + instructions
+│   │   ├── src/index.ts          # Entry point
+│   │   ├── src/index.test.ts     # Example tests (mocked, no API key needed)
+│   │   ├── package.json          # deps: ai, ai-sdk-agents (workspace:*), ollama-ai-provider-v2
+│   │   └── README.md
+│   └── example-plans.md          # Plans for future examples
+│
+├── docs/                         # Astro Starlight documentation site (workspace package)
+│   ├── src/content/docs/
+│   │   ├── index.mdx             # Landing page
+│   │   └── guides/               # Guide pages
+│   │       ├── quickstart.mdx
+│   │       ├── agents.mdx
+│   │       ├── tools.mdx
+│   │       ├── running-agents.mdx
+│   │       ├── results.mdx
+│   │       ├── handoffs.mdx
+│   │       ├── multi-agent.mdx
+│   │       ├── guardrails.mdx
+│   │       ├── streaming.mdx
+│   │       ├── context.mdx
+│   │       ├── tracing.mdx
+│   │       └── why.mdx
+│   └── package.json              # Astro + Starlight + TypeDoc + starlight-llms-txt
+│
+├── scripts/                      # Shell scripts for workspace-wide commands
+│   ├── examples-dev.sh
+│   ├── examples-test.sh
+│   ├── examples-lint.sh
+│   ├── examples-format.sh
+│   └── examples-type-check.sh
+│
+├── package.json                  # Root package (library + workspace scripts)
+├── pnpm-workspace.yaml           # Workspace: ".", "docs", "examples/*"
+├── tsconfig.json
+├── vite.config.ts
+├── vitest.config.ts
+├── eslint.config.js
+├── agent.md                      # This file — project context for AI assistants
+├── build-phases.md               # Detailed build history and design decisions
+└── README.md
 ```
 
 ## Path Aliases
@@ -140,20 +243,26 @@ The project uses `@/` as a path alias to `src/`:
 
 - **100% of public API must be tested** — every exported function, class, method, and type behavior.
 - **Edge cases are not optional** — null/undefined inputs, empty arrays, invalid types, thrown errors, boundary values.
-- **Each module gets its own test file** — mirror the `src/` structure under `tests/`:
+- **Each module gets its own test file** — colocated with source:
   ```
-  tests/
+  src/
   ├── agent/
+  │   ├── agent.ts
   │   └── agent.test.ts
   ├── handoff/
+  │   ├── handoff.ts
   │   └── handoff.test.ts
   ├── guardrail/
-  │   └── guardrail.test.ts
+  │   ├── guardrail.ts
+  │   ├── guardrail.test.ts
+  │   ├── tool-guardrail.ts
+  │   └── tool-guardrail.test.ts
   ├── runner/
+  │   ├── runner.ts
   │   └── runner.test.ts
-  ├── tracing/
-  │   └── tracing.test.ts
-  └── types.test.ts
+  └── tracing/
+      ├── tracing.ts
+      └── tracing.test.ts
   ```
 - **Test names describe behavior, not implementation** — use `it("should return the target agent when handoff is triggered")` not `it("calls handoff function")`.
 - **Run coverage regularly** — use `pnpm test:coverage` and aim for >95% line/branch coverage. Treat uncovered lines as bugs.

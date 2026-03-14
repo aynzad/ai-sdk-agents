@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { LanguageModelV1 } from "ai";
+import type { LanguageModel } from "ai";
 import { z } from "zod";
-import type { RunContext, CoreMessage, Guardrail } from "@/types";
+import type { RunContext, ModelMessage, Guardrail } from "@/types";
 import {
   GuardrailTripwiredError,
   MaxTurnsExceededError,
@@ -92,9 +92,9 @@ describe("Runner.run", () => {
       expect(call.messages).toEqual([{ role: "user", content: "Hello" }]);
     });
 
-    it("should pass CoreMessage array input directly", async () => {
+    it("should pass ModelMessage array input directly", async () => {
       const agent = createSimpleAgent();
-      const messages: CoreMessage[] = [
+      const messages: ModelMessage[] = [
         { role: "user", content: "Hi" },
         { role: "assistant", content: "Hey" },
         { role: "user", content: "How are you?" },
@@ -119,8 +119,8 @@ describe("Runner.run", () => {
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       expect(result.usage).toEqual(
         expect.objectContaining({
-          promptTokens: expect.any(Number),
-          completionTokens: expect.any(Number),
+          inputTokens: expect.any(Number),
+          outputTokens: expect.any(Number),
           totalTokens: expect.any(Number),
         }),
       );
@@ -148,7 +148,7 @@ describe("Runner.run", () => {
       const agent = createSimpleAgent();
       await expect(
         Runner.run(agent, "Hello", {
-          model: "gpt-4o" as unknown as LanguageModelV1,
+          model: "gpt-4o" as unknown as LanguageModel,
         }),
       ).rejects.toThrow(/string model identifier/i);
     });
@@ -208,7 +208,7 @@ describe("Runner.run", () => {
                     type: "tool-call",
                     toolCallId: "tc1",
                     toolName: "transfer_to_other",
-                    args: {},
+                    input: {},
                   },
                 ],
                 toolResults: [
@@ -217,7 +217,7 @@ describe("Runner.run", () => {
                     toolCallId: "tc1",
                     toolName: "transfer_to_other",
                     // Runner falls back to matching by targetAgent name against handoff map
-                    result: {
+                    output: {
                       __handoff: true,
                       targetAgent: "will-be-looked-up",
                     },
@@ -225,8 +225,8 @@ describe("Runner.run", () => {
                 ],
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 5,
+                  inputTokens: 5,
+                  outputTokens: 5,
                   totalTokens: 10,
                 },
               },
@@ -253,7 +253,7 @@ describe("Runner.run", () => {
                     type: "tool-call",
                     toolCallId: `tc${callNum}`,
                     toolName,
-                    args: {},
+                    input: {},
                   },
                 ],
                 toolResults: [
@@ -261,13 +261,13 @@ describe("Runner.run", () => {
                     type: "tool-result",
                     toolCallId: `tc${callNum}`,
                     toolName,
-                    result: { __handoff: true, targetAgent: targetName },
+                    output: { __handoff: true, targetAgent: targetName },
                   },
                 ],
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 5,
+                  inputTokens: 5,
+                  outputTokens: 5,
                   totalTokens: 10,
                 },
               },
@@ -310,18 +310,18 @@ describe("Runner.run", () => {
                 stepType: "tool-result",
                 text: "",
                 toolCalls: [
-                  { type: "tool-call", toolCallId: "tc1", toolName, args: {} },
+                  { type: "tool-call", toolCallId: "tc1", toolName, input: {} },
                 ],
                 toolResults: [
                   {
                     type: "tool-result",
                     toolCallId: "tc1",
                     toolName,
-                    result: { __handoff: true, targetAgent: targetName },
+                    output: { __handoff: true, targetAgent: targetName },
                   },
                 ],
                 finishReason: "tool-calls",
-                usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+                usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
               },
             ],
           }),
@@ -375,7 +375,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_agent_b",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -383,13 +383,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_agent_b",
-                      result: { __handoff: true, targetAgent: "agent-b" },
+                      output: { __handoff: true, targetAgent: "agent-b" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -414,7 +414,7 @@ describe("Runner.run", () => {
     it("should pass agent tools to generateText", async () => {
       const myTool = {
         description: "a tool",
-        parameters: z.object({}),
+        inputSchema: z.object({}),
         execute: vi.fn(),
       };
       const agent = createSimpleAgent({ tools: { myTool } });
@@ -425,12 +425,12 @@ describe("Runner.run", () => {
       expect(call.tools!.myTool).toBeDefined();
     });
 
-    it("should set maxSteps from agent maxToolRoundtrips", async () => {
+    it("should set stopWhen from agent maxToolRoundtrips", async () => {
       const agent = createSimpleAgent({ maxToolRoundtrips: 5 });
       await Runner.run(agent, "Hello");
 
       const call = mockGenerateText.mock.calls[0][0] as GenerateTextCall;
-      expect(call.maxSteps).toBe(5);
+      expect(call.stopWhen).toBeDefined();
     });
 
     it("should record tool calls as steps", async () => {
@@ -445,7 +445,7 @@ describe("Runner.run", () => {
                   type: "tool-call",
                   toolCallId: "tc1",
                   toolName: "weather",
-                  args: { city: "SF" },
+                  input: { city: "SF" },
                 },
               ],
               toolResults: [
@@ -453,19 +453,18 @@ describe("Runner.run", () => {
                   type: "tool-result",
                   toolCallId: "tc1",
                   toolName: "weather",
-                  result: { temp: 72 },
+                  output: { temp: 72 },
                 },
               ],
               finishReason: "tool-calls",
-              usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+              usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
             },
             {
-              stepType: "initial",
               text: "The weather is 72F.",
               toolCalls: [],
               toolResults: [],
               finishReason: "stop",
-              usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+              usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
             },
           ],
           text: "The weather is 72F.",
@@ -494,7 +493,7 @@ describe("Runner.run", () => {
                   type: "tool-call",
                   toolCallId: "tc1",
                   toolName: "weather",
-                  args: {},
+                  input: {},
                 },
               ],
               toolResults: [
@@ -502,11 +501,11 @@ describe("Runner.run", () => {
                   type: "tool-result",
                   toolCallId: "tc1",
                   toolName: "weather",
-                  result: { temp: 72 },
+                  output: { temp: 72 },
                 },
               ],
               finishReason: "tool-calls",
-              usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+              usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
             },
           ],
           text: "Done",
@@ -520,7 +519,7 @@ describe("Runner.run", () => {
         (s) => s.type === "tool_result",
       );
       expect(toolResultSteps.length).toBe(1);
-      expect((toolResultSteps[0].data as { result: unknown }).result).toEqual({
+      expect((toolResultSteps[0].data as { output: unknown }).output).toEqual({
         temp: 72,
       });
     });
@@ -537,7 +536,7 @@ describe("Runner.run", () => {
                   type: "tool-call",
                   toolCallId: "tc1",
                   toolName: "search",
-                  args: {},
+                  input: {},
                 },
               ],
               toolResults: [
@@ -545,11 +544,11 @@ describe("Runner.run", () => {
                   type: "tool-result",
                   toolCallId: "tc1",
                   toolName: "search",
-                  result: "found",
+                  output: "found",
                 },
               ],
               finishReason: "tool-calls",
-              usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+              usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
             },
             {
               stepType: "tool-result",
@@ -559,7 +558,7 @@ describe("Runner.run", () => {
                   type: "tool-call",
                   toolCallId: "tc2",
                   toolName: "fetch",
-                  args: {},
+                  input: {},
                 },
               ],
               toolResults: [
@@ -567,11 +566,11 @@ describe("Runner.run", () => {
                   type: "tool-result",
                   toolCallId: "tc2",
                   toolName: "fetch",
-                  result: "data",
+                  output: "data",
                 },
               ],
               finishReason: "tool-calls",
-              usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+              usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
             },
           ],
           text: "Final answer",
@@ -594,7 +593,7 @@ describe("Runner.run", () => {
       await Runner.run(agent, "Hello");
 
       const call = mockGenerateText.mock.calls[0][0] as GenerateTextCall;
-      expect(call.maxSteps).toBe(3);
+      expect(call.stopWhen).toBeDefined();
     });
   });
 
@@ -636,7 +635,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -644,13 +643,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      result: { __handoff: true, targetAgent: "billing" },
+                      output: { __handoff: true, targetAgent: "billing" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -695,7 +694,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -703,13 +702,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      result: { __handoff: true, targetAgent: "billing" },
+                      output: { __handoff: true, targetAgent: "billing" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -732,7 +731,7 @@ describe("Runner.run", () => {
       const agent = createSimpleAgent({
         handoffs: [
           handoff(targetAgent, {
-            inputFilter: (msgs: CoreMessage[]) =>
+            inputFilter: (msgs: ModelMessage[]) =>
               msgs.filter((m) => m.role === "user"),
           }),
         ],
@@ -740,7 +739,7 @@ describe("Runner.run", () => {
 
       let callCount = 0;
       mockGenerateText.mockImplementation(
-        (opts: { messages?: CoreMessage[] }) => {
+        (opts: { messages?: ModelMessage[] }) => {
           callCount++;
           if (callCount === 1) {
             return Promise.resolve(
@@ -755,7 +754,7 @@ describe("Runner.run", () => {
                         type: "tool-call",
                         toolCallId: "tc1",
                         toolName: "transfer_to_billing",
-                        args: {},
+                        input: {},
                       },
                     ],
                     toolResults: [
@@ -763,13 +762,13 @@ describe("Runner.run", () => {
                         type: "tool-result",
                         toolCallId: "tc1",
                         toolName: "transfer_to_billing",
-                        result: { __handoff: true, targetAgent: "billing" },
+                        output: { __handoff: true, targetAgent: "billing" },
                       },
                     ],
                     finishReason: "tool-calls",
                     usage: {
-                      promptTokens: 5,
-                      completionTokens: 5,
+                      inputTokens: 5,
+                      outputTokens: 5,
                       totalTokens: 10,
                     },
                   },
@@ -815,7 +814,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -823,13 +822,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      result: { __handoff: true, targetAgent: "billing" },
+                      output: { __handoff: true, targetAgent: "billing" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -867,7 +866,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -875,13 +874,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      result: { __handoff: true, targetAgent: "billing" },
+                      output: { __handoff: true, targetAgent: "billing" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -932,7 +931,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_agent_b",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -940,13 +939,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_agent_b",
-                      result: { __handoff: true, targetAgent: "agent-b" },
+                      output: { __handoff: true, targetAgent: "agent-b" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -967,7 +966,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc2",
                       toolName: "transfer_to_agent_c",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -975,13 +974,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc2",
                       toolName: "transfer_to_agent_c",
-                      result: { __handoff: true, targetAgent: "agent-c" },
+                      output: { __handoff: true, targetAgent: "agent-c" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -1015,7 +1014,7 @@ describe("Runner.run", () => {
                   type: "tool-call",
                   toolCallId: "tc1",
                   toolName: "transfer_to_unknown",
-                  args: {},
+                  input: {},
                 },
               ],
               toolResults: [
@@ -1023,11 +1022,11 @@ describe("Runner.run", () => {
                   type: "tool-result",
                   toolCallId: "tc1",
                   toolName: "transfer_to_unknown",
-                  result: { __handoff: true, targetAgent: "nonexistent" },
+                  output: { __handoff: true, targetAgent: "nonexistent" },
                 },
               ],
               finishReason: "tool-calls",
-              usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+              usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
             },
           ],
         }),
@@ -1059,7 +1058,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -1067,13 +1066,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      result: { __handoff: true, targetAgent: "billing" },
+                      output: { __handoff: true, targetAgent: "billing" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -1219,7 +1218,7 @@ describe("Runner.run", () => {
     });
 
     it("should pass assistant response to output guardrails", async () => {
-      let receivedMessages: CoreMessage[] = [];
+      let receivedMessages: ModelMessage[] = [];
       const guard: Guardrail = {
         name: "inspect-guard",
         execute: (_ctx, input) => {
@@ -1260,7 +1259,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_target",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -1268,13 +1267,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_target",
-                      result: { __handoff: true, targetAgent: "target" },
+                      output: { __handoff: true, targetAgent: "target" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -1368,8 +1367,8 @@ describe("Runner.run", () => {
       const agent = createSimpleAgent();
       const result = await Runner.run(agent, "Hello");
 
-      expect(result.usage.promptTokens).toBe(10);
-      expect(result.usage.completionTokens).toBe(5);
+      expect(result.usage.inputTokens).toBe(10);
+      expect(result.usage.outputTokens).toBe(5);
       expect(result.usage.totalTokens).toBe(15);
     });
 
@@ -1381,24 +1380,25 @@ describe("Runner.run", () => {
       mockGenerateText.mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
+          const firstUsage = {
+            inputTokens: 20,
+            outputTokens: 10,
+            totalTokens: 30,
+          };
           return Promise.resolve(
             makeGenerateTextResult({
               text: "",
-              usage: {
-                promptTokens: 20,
-                completionTokens: 10,
-                totalTokens: 30,
-              },
+              usage: firstUsage,
+              totalUsage: firstUsage,
               steps: [
                 {
-                  stepType: "tool-result",
                   text: "",
                   toolCalls: [
                     {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -1406,44 +1406,48 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      result: { __handoff: true, targetAgent: "billing" },
+                      output: { __handoff: true, targetAgent: "billing" },
                     },
                   ],
                   finishReason: "tool-calls",
-                  usage: {
-                    promptTokens: 20,
-                    completionTokens: 10,
-                    totalTokens: 30,
-                  },
+                  usage: firstUsage,
                 },
               ],
             }),
           );
         }
+        const secondUsage = {
+          inputTokens: 15,
+          outputTokens: 8,
+          totalTokens: 23,
+        };
         return Promise.resolve(
           makeGenerateTextResult({
-            usage: { promptTokens: 15, completionTokens: 8, totalTokens: 23 },
+            usage: secondUsage,
+            totalUsage: secondUsage,
           }),
         );
       });
 
       const result = await Runner.run(agent, "Hello");
-      expect(result.usage.promptTokens).toBe(35);
-      expect(result.usage.completionTokens).toBe(18);
+      expect(result.usage.inputTokens).toBe(35);
+      expect(result.usage.outputTokens).toBe(18);
       expect(result.usage.totalTokens).toBe(53);
     });
 
     it("should handle zero usage gracefully", async () => {
+      const zeroUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
       mockGenerateText.mockResolvedValue(
         makeGenerateTextResult({
-          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+          usage: zeroUsage,
+          totalUsage: zeroUsage,
         }),
       );
 
       const agent = createSimpleAgent();
       const result = await Runner.run(agent, "Hello");
-      expect(result.usage.promptTokens).toBe(0);
-      expect(result.usage.completionTokens).toBe(0);
+      expect(result.usage.inputTokens).toBe(0);
+      expect(result.usage.outputTokens).toBe(0);
       expect(result.usage.totalTokens).toBe(0);
     });
   });
@@ -1495,7 +1499,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -1503,13 +1507,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      result: { __handoff: true, targetAgent: "billing" },
+                      output: { __handoff: true, targetAgent: "billing" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -1557,7 +1561,7 @@ describe("Runner.run", () => {
                       type: "tool-call",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      args: {},
+                      input: {},
                     },
                   ],
                   toolResults: [
@@ -1565,13 +1569,13 @@ describe("Runner.run", () => {
                       type: "tool-result",
                       toolCallId: "tc1",
                       toolName: "transfer_to_billing",
-                      result: { __handoff: true, targetAgent: "billing" },
+                      output: { __handoff: true, targetAgent: "billing" },
                     },
                   ],
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
@@ -1823,19 +1827,19 @@ describe("Runner.stream (full streaming)", () => {
               type: "tool-call",
               toolCallId: "tc1",
               toolName: "weather",
-              args: { city: "SF" },
+              input: { city: "SF" },
             },
             {
               type: "tool-result",
               toolCallId: "tc1",
               toolName: "weather",
-              result: { temp: 72 },
+              output: { temp: 72 },
             },
-            { type: "text-delta", textDelta: "Done." },
+            { type: "text-delta", delta: "Done." },
             {
               type: "finish",
               finishReason: "stop",
-              usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+              usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
             },
           ],
         }),
@@ -1864,19 +1868,19 @@ describe("Runner.stream (full streaming)", () => {
               type: "tool-call",
               toolCallId: "tc1",
               toolName: "weather",
-              args: { city: "SF" },
+              input: { city: "SF" },
             },
             {
               type: "tool-result",
               toolCallId: "tc1",
               toolName: "weather",
-              result: { temp: 72 },
+              output: { temp: 72 },
             },
-            { type: "text-delta", textDelta: "Done." },
+            { type: "text-delta", delta: "Done." },
             {
               type: "finish",
               finishReason: "stop",
-              usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+              usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
             },
           ],
         }),
@@ -1888,21 +1892,21 @@ describe("Runner.stream (full streaming)", () => {
       const events: Array<{
         type: string;
         toolName?: string;
-        result?: unknown;
+        output?: unknown;
       }> = [];
       for await (const event of streamResult.events) {
         if (event.type === "tool_call_end") {
           events.push({
             type: event.type,
             toolName: event.toolName,
-            result: event.result,
+            output: event.output,
           });
         }
       }
 
       expect(events.length).toBe(1);
       expect(events[0].toolName).toBe("weather");
-      expect(events[0].result).toEqual({ temp: 72 });
+      expect(events[0].output).toEqual({ temp: 72 });
     });
 
     it("should record tool steps in final RunResult", async () => {
@@ -1914,19 +1918,19 @@ describe("Runner.stream (full streaming)", () => {
               type: "tool-call",
               toolCallId: "tc1",
               toolName: "weather",
-              args: { city: "SF" },
+              input: { city: "SF" },
             },
             {
               type: "tool-result",
               toolCallId: "tc1",
               toolName: "weather",
-              result: { temp: 72 },
+              output: { temp: 72 },
             },
-            { type: "text-delta", textDelta: "Done." },
+            { type: "text-delta", delta: "Done." },
             {
               type: "finish",
               finishReason: "stop",
-              usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+              usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
             },
           ],
         }),
@@ -1951,7 +1955,7 @@ describe("Runner.stream (full streaming)", () => {
     it("should pass tools and maxSteps to streamText", async () => {
       const myTool = {
         description: "a tool",
-        parameters: z.object({}),
+        inputSchema: z.object({}),
         execute: vi.fn(),
       };
       const agent = createSimpleAgent({
@@ -1967,7 +1971,7 @@ describe("Runner.stream (full streaming)", () => {
       const call = mockStreamText.mock.calls[0][0] as StreamTextCall;
       expect(call.tools).toBeDefined();
       expect(call.tools!.myTool).toBeDefined();
-      expect(call.maxSteps).toBe(5);
+      expect(call.stopWhen).toBeDefined();
     });
 
     it("should handle multiple tool calls across steps", async () => {
@@ -1979,31 +1983,31 @@ describe("Runner.stream (full streaming)", () => {
               type: "tool-call",
               toolCallId: "tc1",
               toolName: "search",
-              args: { q: "hi" },
+              input: { q: "hi" },
             },
             {
               type: "tool-result",
               toolCallId: "tc1",
               toolName: "search",
-              result: "found",
+              output: "found",
             },
             {
               type: "tool-call",
               toolCallId: "tc2",
               toolName: "fetch",
-              args: { url: "x" },
+              input: { url: "x" },
             },
             {
               type: "tool-result",
               toolCallId: "tc2",
               toolName: "fetch",
-              result: "data",
+              output: "data",
             },
-            { type: "text-delta", textDelta: "Final." },
+            { type: "text-delta", delta: "Final." },
             {
               type: "finish",
               finishReason: "stop",
-              usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+              usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
             },
           ],
         }),
@@ -2048,25 +2052,25 @@ describe("Runner.stream (full streaming)", () => {
                 type: "tool-call",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                args: {},
+                input: {},
               },
               {
                 type: "tool-result",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                result: { __handoff: true, targetAgent: "billing" },
+                output: { __handoff: true, targetAgent: "billing" },
               },
               {
                 type: "finish",
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 5,
+                  inputTokens: 5,
+                  outputTokens: 5,
                   totalTokens: 10,
                 },
               },
             ],
-            usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+            usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
           });
         }
         return makeStreamTextResult({ textDeltas: ["Billing here!"] });
@@ -2102,25 +2106,25 @@ describe("Runner.stream (full streaming)", () => {
                 type: "tool-call",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                args: {},
+                input: {},
               },
               {
                 type: "tool-result",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                result: { __handoff: true, targetAgent: "billing" },
+                output: { __handoff: true, targetAgent: "billing" },
               },
               {
                 type: "finish",
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 5,
+                  inputTokens: 5,
+                  outputTokens: 5,
                   totalTokens: 10,
                 },
               },
             ],
-            usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+            usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
           });
         }
         return makeStreamTextResult();
@@ -2156,25 +2160,25 @@ describe("Runner.stream (full streaming)", () => {
                 type: "tool-call",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                args: {},
+                input: {},
               },
               {
                 type: "tool-result",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                result: { __handoff: true, targetAgent: "billing" },
+                output: { __handoff: true, targetAgent: "billing" },
               },
               {
                 type: "finish",
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 5,
+                  inputTokens: 5,
+                  outputTokens: 5,
                   totalTokens: 10,
                 },
               },
             ],
-            usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+            usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
           });
         }
         return makeStreamTextResult();
@@ -2201,7 +2205,7 @@ describe("Runner.stream (full streaming)", () => {
       const agent = createSimpleAgent({
         handoffs: [
           handoff(targetAgent, {
-            inputFilter: (msgs: CoreMessage[]) =>
+            inputFilter: (msgs: ModelMessage[]) =>
               msgs.filter((m) => m.role === "user"),
           }),
         ],
@@ -2209,7 +2213,7 @@ describe("Runner.stream (full streaming)", () => {
 
       let callCount = 0;
       mockStreamText.mockImplementation(
-        (opts: { messages?: CoreMessage[] }) => {
+        (opts: { messages?: ModelMessage[] }) => {
           callCount++;
           if (callCount === 1) {
             return makeStreamTextResult({
@@ -2220,25 +2224,25 @@ describe("Runner.stream (full streaming)", () => {
                   type: "tool-call",
                   toolCallId: "tc1",
                   toolName: "transfer_to_billing",
-                  args: {},
+                  input: {},
                 },
                 {
                   type: "tool-result",
                   toolCallId: "tc1",
                   toolName: "transfer_to_billing",
-                  result: { __handoff: true, targetAgent: "billing" },
+                  output: { __handoff: true, targetAgent: "billing" },
                 },
                 {
                   type: "finish",
                   finishReason: "tool-calls",
                   usage: {
-                    promptTokens: 5,
-                    completionTokens: 5,
+                    inputTokens: 5,
+                    outputTokens: 5,
                     totalTokens: 10,
                   },
                 },
               ],
-              usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+              usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
             });
           }
           const msgs = opts.messages ?? [];
@@ -2277,26 +2281,26 @@ describe("Runner.stream (full streaming)", () => {
                 type: "tool-call",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                args: {},
+                input: {},
               },
               {
                 type: "tool-result",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                result: { __handoff: true, targetAgent: "billing" },
+                output: { __handoff: true, targetAgent: "billing" },
               },
-              { type: "text-delta", textDelta: "This should be suppressed" },
+              { type: "text-delta", delta: "This should be suppressed" },
               {
                 type: "finish",
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 5,
+                  inputTokens: 5,
+                  outputTokens: 5,
                   totalTokens: 10,
                 },
               },
             ],
-            usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+            usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
           });
         }
         return makeStreamTextResult({ textDeltas: ["Billing!"] });
@@ -2333,25 +2337,25 @@ describe("Runner.stream (full streaming)", () => {
                 type: "tool-call",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                args: {},
+                input: {},
               },
               {
                 type: "tool-result",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                result: { __handoff: true, targetAgent: "billing" },
+                output: { __handoff: true, targetAgent: "billing" },
               },
               {
                 type: "finish",
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 5,
+                  inputTokens: 5,
+                  outputTokens: 5,
                   totalTokens: 10,
                 },
               },
             ],
-            usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+            usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
           });
         }
         return makeStreamTextResult();
@@ -2415,7 +2419,7 @@ describe("Runner.stream (full streaming)", () => {
     });
 
     it("should run output guardrails after final text collected", async () => {
-      let receivedMessages: CoreMessage[] = [];
+      let receivedMessages: ModelMessage[] = [];
       const guard: Guardrail = {
         name: "inspect-guard",
         execute: (_ctx, input) => {
@@ -2456,25 +2460,25 @@ describe("Runner.stream (full streaming)", () => {
                 type: "tool-call",
                 toolCallId: "tc1",
                 toolName: "transfer_to_target",
-                args: {},
+                input: {},
               },
               {
                 type: "tool-result",
                 toolCallId: "tc1",
                 toolName: "transfer_to_target",
-                result: { __handoff: true, targetAgent: "target" },
+                output: { __handoff: true, targetAgent: "target" },
               },
               {
                 type: "finish",
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 5,
+                  inputTokens: 5,
+                  outputTokens: 5,
                   totalTokens: 10,
                 },
               },
             ],
-            usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+            usage: { inputTokens: 5, outputTokens: 5, totalTokens: 10 },
           });
         }
         return makeStreamTextResult();
@@ -2510,29 +2514,29 @@ describe("Runner.stream (full streaming)", () => {
                 type: "tool-call",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                args: {},
+                input: {},
               },
               {
                 type: "tool-result",
                 toolCallId: "tc1",
                 toolName: "transfer_to_billing",
-                result: { __handoff: true, targetAgent: "billing" },
+                output: { __handoff: true, targetAgent: "billing" },
               },
               {
                 type: "finish",
                 finishReason: "tool-calls",
                 usage: {
-                  promptTokens: 20,
-                  completionTokens: 10,
+                  inputTokens: 20,
+                  outputTokens: 10,
                   totalTokens: 30,
                 },
               },
             ],
-            usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+            usage: { inputTokens: 20, outputTokens: 10, totalTokens: 30 },
           });
         }
         return makeStreamTextResult({
-          usage: { promptTokens: 15, completionTokens: 8, totalTokens: 23 },
+          usage: { inputTokens: 15, outputTokens: 8, totalTokens: 23 },
         });
       });
 
@@ -2542,8 +2546,8 @@ describe("Runner.stream (full streaming)", () => {
       }
 
       const result = await streamResult.result;
-      expect(result.usage.promptTokens).toBe(35);
-      expect(result.usage.completionTokens).toBe(18);
+      expect(result.usage.inputTokens).toBe(35);
+      expect(result.usage.outputTokens).toBe(18);
       expect(result.usage.totalTokens).toBe(53);
     });
 
@@ -2570,7 +2574,7 @@ describe("Runner.stream (full streaming)", () => {
     it("should handle zero usage", async () => {
       mockStreamText.mockReturnValue(
         makeStreamTextResult({
-          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+          usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
         }),
       );
 
@@ -2582,8 +2586,8 @@ describe("Runner.stream (full streaming)", () => {
       }
 
       const result = await streamResult.result;
-      expect(result.usage.promptTokens).toBe(0);
-      expect(result.usage.completionTokens).toBe(0);
+      expect(result.usage.inputTokens).toBe(0);
+      expect(result.usage.outputTokens).toBe(0);
       expect(result.usage.totalTokens).toBe(0);
     });
 
@@ -2638,21 +2642,21 @@ describe("Runner.stream (full streaming)", () => {
               type: "tool-call",
               toolCallId: `tc${Date.now()}`,
               toolName,
-              args: {},
+              input: {},
             },
             {
               type: "tool-result",
               toolCallId: `tc${Date.now()}`,
               toolName,
-              result: { __handoff: true, targetAgent: targetName },
+              output: { __handoff: true, targetAgent: targetName },
             },
             {
               type: "finish",
               finishReason: "tool-calls",
-              usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+              usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
             },
           ],
-          usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
         });
       });
 
@@ -2707,20 +2711,20 @@ describe("Runner.stream (full streaming)", () => {
           textDeltas: [],
           text: "",
           fullStreamParts: [
-            { type: "tool-call", toolCallId: "tc1", toolName, args: {} },
+            { type: "tool-call", toolCallId: "tc1", toolName, input: {} },
             {
               type: "tool-result",
               toolCallId: "tc1",
               toolName,
-              result: { __handoff: true, targetAgent: targetName },
+              output: { __handoff: true, targetAgent: targetName },
             },
             {
               type: "finish",
               finishReason: "tool-calls",
-              usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+              usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
             },
           ],
-          usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
         });
       });
 
@@ -2844,7 +2848,7 @@ describe("Runner.stream (full streaming)", () => {
       });
       const gt = guardedTool({
         description: "Guarded tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -2865,7 +2869,7 @@ describe("Runner.stream (full streaming)", () => {
       const plainExecute = vi.fn().mockResolvedValue("plain-result");
       const plainTool = {
         description: "Plain tool",
-        parameters: z.object({ x: z.number() }),
+        inputSchema: z.object({ x: z.number() }),
         execute: plainExecute,
       };
 
@@ -2880,7 +2884,7 @@ describe("Runner.stream (full streaming)", () => {
     it("should handle ToolGuardrailTripwiredError from generateText", async () => {
       const gt = guardedTool({
         description: "Tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -2902,7 +2906,7 @@ describe("Runner.stream (full streaming)", () => {
       const onGuardrailTripped = vi.fn();
       const gt = guardedTool({
         description: "Tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -2952,7 +2956,7 @@ describe("Runner.stream (full streaming)", () => {
                     type: "tool-call",
                     toolCallId: "tc1",
                     toolName: "transfer_to_billing",
-                    args: {},
+                    input: {},
                   },
                 ],
                 toolResults: [
@@ -2960,13 +2964,13 @@ describe("Runner.stream (full streaming)", () => {
                     type: "tool-result",
                     toolCallId: "tc1",
                     toolName: "transfer_to_billing",
-                    result: { __handoff: true, targetAgent: "billing" },
+                    output: { __handoff: true, targetAgent: "billing" },
                   },
                 ],
                 finishReason: "stop",
                 usage: {
-                  promptTokens: 5,
-                  completionTokens: 3,
+                  inputTokens: 5,
+                  outputTokens: 3,
                   totalTokens: 8,
                 },
               },
@@ -2989,7 +2993,7 @@ describe("Runner.stream (full streaming)", () => {
       });
       const gt = guardedTool({
         description: "Guarded",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -2999,7 +3003,7 @@ describe("Runner.stream (full streaming)", () => {
       const plainExecute = vi.fn().mockResolvedValue("result");
       const plainTool = {
         description: "Plain",
-        parameters: z.object({ x: z.number() }),
+        inputSchema: z.object({ x: z.number() }),
         execute: plainExecute,
       };
 
@@ -3025,7 +3029,7 @@ describe("Runner.stream (full streaming)", () => {
 
       const gt = guardedTool({
         description: "Tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -3052,7 +3056,7 @@ describe("Runner.stream (full streaming)", () => {
     it("should re-throw non-ToolGuardrailTripwiredError from generateText", async () => {
       const gt = guardedTool({
         description: "Tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -3075,7 +3079,7 @@ describe("Runner.stream (full streaming)", () => {
     it("should emit error event when tool guardrail throwException", async () => {
       const gt = guardedTool({
         description: "Tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -3089,7 +3093,7 @@ describe("Runner.stream (full streaming)", () => {
         get fullStream() {
           return (async function* () {
             await new Promise<void>((r) => setTimeout(r, 1));
-            yield { type: "text-delta" as const, textDelta: "" };
+            yield { type: "text-delta" as const, delta: "" };
             throw new ToolGuardrailTripwiredError(
               "stream_guard",
               "myTool",
@@ -3119,7 +3123,7 @@ describe("Runner.stream (full streaming)", () => {
     it("should reject result promise on tool guardrail trip", async () => {
       const gt = guardedTool({
         description: "Tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -3133,7 +3137,7 @@ describe("Runner.stream (full streaming)", () => {
         get fullStream() {
           return (async function* () {
             await new Promise<void>((r) => setTimeout(r, 1));
-            yield { type: "text-delta" as const, textDelta: "" };
+            yield { type: "text-delta" as const, delta: "" };
             throw new ToolGuardrailTripwiredError("guard", "myTool", "blocked");
           })();
         },
@@ -3160,7 +3164,7 @@ describe("Runner.stream (full streaming)", () => {
       });
       const gt = guardedTool({
         description: "Guarded tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -3187,7 +3191,7 @@ describe("Runner.stream (full streaming)", () => {
       const onGuardrailTripped = vi.fn();
       const gt = guardedTool({
         description: "Tool",
-        parameters: z.object({ text: z.string() }),
+        inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }: { text: string }) => {
           await new Promise<void>((r) => setTimeout(r, 1));
           return text;
@@ -3201,7 +3205,7 @@ describe("Runner.stream (full streaming)", () => {
         get fullStream() {
           return (async function* () {
             await new Promise<void>((r) => setTimeout(r, 1));
-            yield { type: "text-delta" as const, textDelta: "" };
+            yield { type: "text-delta" as const, delta: "" };
             throw new ToolGuardrailTripwiredError("guard", "myTool", "blocked");
           })();
         },

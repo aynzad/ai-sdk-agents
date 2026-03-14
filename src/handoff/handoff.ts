@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Tool, CoreMessage } from "ai";
+import type { Tool, ModelMessage } from "ai";
 import type { AgentInstance, HandoffConfig, HandoffTarget } from "@/types";
 
 function isAgentInstance(
@@ -42,13 +42,13 @@ export function handoffToTool<TContext>(target: HandoffTarget<TContext>): {
   const description =
     config.toolDescription ?? `Transfer to agent "${agentName}"`;
 
-  const parameters = z.object({
+  const inputSchema = z.object({
     reason: z.string().optional().describe("Reason for the handoff"),
   });
 
   const tool: Tool = {
     description,
-    parameters,
+    inputSchema,
     execute: () =>
       Promise.resolve({
         __handoff: true,
@@ -72,9 +72,9 @@ export function isHandoffResult(
   );
 }
 
-type MessageFilter = (messages: CoreMessage[]) => CoreMessage[];
+type MessageFilter = (messages: ModelMessage[]) => ModelMessage[];
 
-function hasToolCallContent(message: CoreMessage): boolean {
+function hasToolCallContent(message: ModelMessage): boolean {
   if (message.role !== "assistant") return false;
   if (!Array.isArray(message.content)) return false;
   return message.content.some(
@@ -83,27 +83,27 @@ function hasToolCallContent(message: CoreMessage): boolean {
 }
 
 export const handoffFilters = {
-  removeToolMessages(messages: CoreMessage[]): CoreMessage[] {
+  removeToolMessages(messages: ModelMessage[]): ModelMessage[] {
     return messages.filter((m) => m.role !== "tool" && !hasToolCallContent(m));
   },
 
   keepLast(n: number): MessageFilter {
-    return (messages: CoreMessage[]) => {
+    return (messages: ModelMessage[]) => {
       if (n <= 0) return [];
       return messages.slice(-n);
     };
   },
 
-  removeAll(_messages: CoreMessage[]): CoreMessage[] {
+  removeAll(_messages: ModelMessage[]): ModelMessage[] {
     return [];
   },
 
-  keepConversation(messages: CoreMessage[]): CoreMessage[] {
+  keepConversation(messages: ModelMessage[]): ModelMessage[] {
     return messages.filter((m) => m.role === "user" || m.role === "assistant");
   },
 
   compose(...filters: MessageFilter[]): MessageFilter {
-    return (messages: CoreMessage[]) =>
-      filters.reduce<CoreMessage[]>((msgs, fn) => fn(msgs), messages);
+    return (messages: ModelMessage[]) =>
+      filters.reduce<ModelMessage[]>((msgs, fn) => fn(msgs), messages);
   },
 };

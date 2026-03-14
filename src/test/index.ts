@@ -1,36 +1,41 @@
 import { vi } from "vitest";
-import type { LanguageModelV1 } from "ai";
+import type { LanguageModel } from "ai";
 import type { RunContext, GuardrailInput, TraceProcessor } from "../types";
 
-export function createMockModel(): LanguageModelV1 {
+export function createMockModel(): LanguageModel {
   return {
-    specificationVersion: "v1",
+    specificationVersion: "v2",
     provider: "test",
     modelId: "test-model",
     defaultObjectGenerationMode: undefined,
     doGenerate: vi.fn(),
     doStream: vi.fn(),
-  };
+  } as unknown as LanguageModel;
 }
 
 export function makeGenerateTextResult(
   overrides: Record<string, unknown> = {},
 ) {
+  const usage = {
+    inputTokens: 10,
+    outputTokens: 5,
+    totalTokens: 15,
+  };
   return {
     text: "Hello!",
     steps: [
       {
-        stepType: "initial" as const,
         text: "Hello!",
         toolCalls: [],
         toolResults: [],
         finishReason: "stop" as const,
-        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        usage,
       },
     ],
     toolCalls: [],
     toolResults: [],
-    usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+    usage,
+    totalUsage: usage,
     finishReason: "stop" as const,
     response: { id: "resp-1", model: "test-model", timestamp: new Date() },
     ...overrides,
@@ -41,8 +46,8 @@ export interface StreamTextMockOverrides {
   textDeltas?: string[];
   fullStreamParts?: Array<Record<string, unknown>>;
   usage?: {
-    promptTokens: number;
-    completionTokens: number;
+    inputTokens: number;
+    outputTokens: number;
     totalTokens: number;
   };
   steps?: Array<Record<string, unknown>>;
@@ -59,16 +64,16 @@ export function makeStreamTextResult(overrides: StreamTextMockOverrides = {}) {
   const textDeltas = overrides.textDeltas ?? ["Hello", "!"];
   const text = overrides.text ?? textDeltas.join("");
   const usage = overrides.usage ?? {
-    promptTokens: 10,
-    completionTokens: 5,
+    inputTokens: 10,
+    outputTokens: 5,
     totalTokens: 15,
   };
   const parts = overrides.fullStreamParts ?? [
-    ...textDeltas.map((d) => ({ type: "text-delta" as const, textDelta: d })),
+    ...textDeltas.map((d) => ({ type: "text-delta" as const, delta: d })),
     {
       type: "finish" as const,
       finishReason: overrides.finishReason ?? "stop",
-      usage,
+      totalUsage: usage,
     },
   ];
 
@@ -77,6 +82,7 @@ export function makeStreamTextResult(overrides: StreamTextMockOverrides = {}) {
     textStream: iterate(textDeltas),
     text: Promise.resolve(text),
     usage: Promise.resolve(usage),
+    totalUsage: Promise.resolve(usage),
     steps: Promise.resolve(overrides.steps ?? []),
     toolCalls: Promise.resolve([]),
     toolResults: Promise.resolve([]),
@@ -92,29 +98,27 @@ export function makeStreamTextResult(overrides: StreamTextMockOverrides = {}) {
 
 export function makeToolCallStep(
   toolName: string,
-  args: Record<string, unknown>,
-  result?: unknown,
+  input: Record<string, unknown>,
+  output?: unknown,
 ) {
   const toolCallId = `call-${toolName}-${Date.now()}`;
   return {
-    stepType: "initial" as const,
     text: "",
-    toolCalls: [{ toolCallId, toolName, args }],
-    toolResults: result !== undefined ? [{ toolCallId, toolName, result }] : [],
+    toolCalls: [{ toolCallId, toolName, input }],
+    toolResults: output !== undefined ? [{ toolCallId, toolName, output }] : [],
     finishReason: "tool-calls" as const,
-    usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+    usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
   };
 }
 
 export function makeHandoffStep(handoffToolName: string) {
   const toolCallId = `call-${handoffToolName}-${Date.now()}`;
   return {
-    stepType: "initial" as const,
     text: "",
-    toolCalls: [{ toolCallId, toolName: handoffToolName, args: {} }],
+    toolCalls: [{ toolCallId, toolName: handoffToolName, input: {} }],
     toolResults: [],
     finishReason: "tool-calls" as const,
-    usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+    usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
   };
 }
 

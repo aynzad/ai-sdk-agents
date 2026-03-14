@@ -73,6 +73,52 @@ examples/<##-name>/
       └── index.test.ts      # Tests (imports from ai-sdk-agents/test, no real LLM)
 ```
 
+### .env Loading in Examples
+
+`tsx` does not load `.env` files automatically. Use Node's built-in `--env-file` flag
+in the `start` and `dev` scripts so that `process.env.*` values are available at runtime:
+
+```json
+{
+  "scripts": {
+    "start": "tsx --env-file=.env src/index.ts",
+    "dev": "tsx --env-file=.env src/index.ts"
+  }
+}
+```
+
+`--env-file` is supported in Node.js 20.6+ (which `tsx` passes through).
+Test scripts (`vitest run`) do **not** need this because tests use mocked models and
+never read `.env` values.
+
+### ESLint Config: `projectService` vs `project` in pnpm Workspaces
+
+Example `eslint.config.js` files **must** use `project: true` (not `projectService: true`) in `parserOptions`:
+
+```javascript
+parserOptions: {
+  project: true,                      // NOT projectService: true
+  tsconfigRootDir: import.meta.dirname,
+},
+```
+
+**Why:** In this pnpm workspace, third-party packages (e.g. `ollama-ai-provider-v2`) are installed via symlinks into the `.pnpm` virtual store. Their type declarations import transitive dependencies (`@ai-sdk/provider`, `@ai-sdk/provider-utils`, `zod/v4`) that live alongside them in the store.
+
+- `tsc --noEmit` and `npx eslint` (CLI) resolve these types correctly by following pnpm's symlink chain.
+- `projectService: true` uses TypeScript's **language service project service API**, which in Cursor's ESLint extension fails to follow pnpm symlinks for transitive type dependencies. The imported module's type resolves to TypeScript's internal `error` type, triggering `@typescript-eslint/no-unsafe-call` ("type that could not be resolved") and `@typescript-eslint/no-unsafe-assignment` ("error typed value").
+- `project: true` uses the **traditional TypeScript program creation** from `tsconfig.json`, which correctly follows pnpm's symlink structure in the IDE context.
+
+**Symptoms if `projectService: true` is used:**
+```
+[ERROR] Unsafe assignment of an error typed value. (eslint)
+[ERROR] Unsafe call of a type that could not be resolved. (eslint)
+```
+These appear only in the Cursor IDE (not in CLI). The root cause is not the application code but the ESLint type-checker's module resolution path.
+
+**Additional context:** The workspace VS Code settings (`"eslint.workingDirectories": [{ "mode": "auto" }]`) cause the ESLint extension to detect each example's `eslint.config.js` as a separate working directory. Changes to the root `eslint.config.js` (e.g. adding `examples/**` to ignores) have no effect on example files.
+
+---
+
 ### Next.js Example Structure
 
 ```

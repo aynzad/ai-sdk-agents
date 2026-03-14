@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { CoreMessage } from "ai";
+import type { LanguageModel, ModelMessage } from "ai";
 import type * as AiModule from "ai";
 import type { Guardrail } from "@/types";
 import {
@@ -194,10 +194,10 @@ describe("keywordGuardrail", () => {
               type: "tool-call",
               toolCallId: "tc1",
               toolName: "search",
-              args: { q: "secret" },
+              input: { q: "secret" },
             },
           ],
-        } as CoreMessage,
+        } as ModelMessage,
       ],
     });
 
@@ -377,13 +377,14 @@ describe("llmGuardrail", () => {
   });
 
   const mockModel = {
-    specificationVersion: "v1" as const,
+    specificationVersion: "v2" as const,
     provider: "test",
     modelId: "test-model",
     defaultObjectGenerationMode: undefined,
+    supportedUrls: {},
     doGenerate: vi.fn(),
     doStream: vi.fn(),
-  };
+  } as unknown as LanguageModel;
 
   it("should call generateText with the model and built prompt", async () => {
     mockGenerateText.mockResolvedValue({ text: "safe" });

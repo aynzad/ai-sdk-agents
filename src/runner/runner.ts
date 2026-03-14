@@ -1,6 +1,6 @@
-import { generateText, streamText } from "ai";
-import type { LanguageModelV1, CoreMessage, ToolSet } from "ai";
-import type { ZodType } from "zod";
+import { generateText, streamText, stepCountIs } from "ai";
+import type { LanguageModel, ModelMessage, ToolSet } from "ai";
+
 import type {
   AgentInstance,
   HandoffConfig,
@@ -29,12 +29,12 @@ const DEFAULT_MAX_TURNS = 10;
 function resolveModel<TContext>(
   agent: AgentInstance<TContext, unknown>,
   config?: RunConfig<TContext>,
-): LanguageModelV1 {
+): LanguageModel {
   const raw = config?.model ?? agent.config.model;
   if (typeof raw === "string") {
     throw new Error(
       `String model identifiers are not yet supported. ` +
-        `Pass a LanguageModelV1 instance instead (received: "${raw}").`,
+        `Pass a LanguageModel instance instead (received: "${raw}").`,
     );
   }
   return raw;
@@ -42,32 +42,32 @@ function resolveModel<TContext>(
 
 interface ToolResultEntry {
   toolName?: string;
-  result?: unknown;
+  output?: unknown;
 }
 
 interface FullStreamPart {
   type: string;
-  textDelta?: string;
+  delta?: string;
   toolCallId?: string;
   toolName?: string;
-  args?: unknown;
-  result?: unknown;
+  input?: unknown;
+  output?: unknown;
 }
 
 export class Runner {
   static async run<TContext = unknown, TOutput = string>(
     agent: AgentInstance<TContext, TOutput>,
-    input: string | CoreMessage[],
+    input: string | ModelMessage[],
     config?: RunConfig<TContext>,
   ): Promise<RunResult<TOutput>> {
     const maxTurns = config?.maxTurns ?? DEFAULT_MAX_TURNS;
-    let messages: CoreMessage[] =
+    let messages: ModelMessage[] =
       typeof input === "string"
         ? [{ role: "user", content: input }]
         : [...input];
 
     const steps: RunStep[] = [];
-    const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    const usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
     let currentAgent: AgentInstance<TContext, unknown> = agent as AgentInstance<
       TContext,
       unknown
@@ -170,7 +170,7 @@ export class Runner {
           system,
           messages: [...messages],
           tools: Object.keys(agentTools).length > 0 ? agentTools : undefined,
-          maxSteps: currentAgent.config.maxToolRoundtrips ?? 10,
+          stopWhen: stepCountIs(currentAgent.config.maxToolRoundtrips ?? 10),
           ...(currentAgent.config.modelSettings ?? {}),
           ...(ctx.signal ? { abortSignal: ctx.signal } : {}),
         });
@@ -190,9 +190,9 @@ export class Runner {
         throw err;
       }
 
-      usage.promptTokens += genResult.usage.promptTokens;
-      usage.completionTokens += genResult.usage.completionTokens;
-      usage.totalTokens += genResult.usage.totalTokens;
+      usage.inputTokens += genResult.totalUsage.inputTokens ?? 0;
+      usage.outputTokens += genResult.totalUsage.outputTokens ?? 0;
+      usage.totalTokens += genResult.totalUsage.totalTokens ?? 0;
 
       let handoffOccurred = false;
       let handoffTargetConfig: HandoffConfig<TContext> | null = null;
@@ -214,7 +214,7 @@ export class Runner {
             data: tr,
           });
 
-          if (isHandoffResult(tr.result)) {
+          if (isHandoffResult(tr.output)) {
             const toolName = tr.toolName;
             handoffTargetConfig = toolName
               ? (handoffMap.get(toolName) ?? null)
@@ -224,7 +224,7 @@ export class Runner {
               for (const [, hc] of handoffMap) {
                 if (
                   hc.agent.name ===
-                  (tr.result as { targetAgent: string }).targetAgent
+                  (tr.output as { targetAgent: string }).targetAgent
                 ) {
                   handoffTargetConfig = hc;
                   break;
@@ -308,7 +308,7 @@ export class Runner {
       agentSpan?.end();
 
       if (currentAgent.config.outputGuardrails?.length) {
-        const outputMessages: CoreMessage[] = [
+        const outputMessages: ModelMessage[] = [
           { role: "assistant", content: genResult.text },
         ];
         const guardResult = await runGuardrails(
@@ -333,7 +333,7 @@ export class Runner {
       let output: unknown;
       if (currentAgent.config.outputSchema) {
         const parsed: unknown = JSON.parse(genResult.text);
-        output = (currentAgent.config.outputSchema as ZodType).parse(parsed);
+        output = currentAgent.config.outputSchema.parse(parsed);
       } else {
         output = genResult.text;
       }
@@ -361,7 +361,7 @@ export class Runner {
 
   static stream<TContext = unknown, TOutput = string>(
     agent: AgentInstance<TContext, TOutput>,
-    input: string | CoreMessage[],
+    input: string | ModelMessage[],
     config?: RunConfig<TContext>,
   ): StreamResult<TOutput> {
     let resolveResult: (value: RunResult<TOutput>) => void;
@@ -373,13 +373,13 @@ export class Runner {
 
     async function* eventGenerator(): AsyncGenerator<StreamEvent> {
       const maxTurns = config?.maxTurns ?? DEFAULT_MAX_TURNS;
-      let messages: CoreMessage[] =
+      let messages: ModelMessage[] =
         typeof input === "string"
           ? [{ role: "user", content: input }]
           : [...input];
 
       const steps: RunStep[] = [];
-      const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
       let currentAgent: AgentInstance<TContext, unknown> =
         agent as AgentInstance<TContext, unknown>;
       let turn = 0;
@@ -485,7 +485,7 @@ export class Runner {
             system,
             messages: [...messages],
             tools: Object.keys(agentTools).length > 0 ? agentTools : undefined,
-            maxSteps: currentAgent.config.maxToolRoundtrips ?? 10,
+            stopWhen: stepCountIs(currentAgent.config.maxToolRoundtrips ?? 10),
             ...(currentAgent.config.modelSettings ?? {}),
             ...(ctx.signal ? { abortSignal: ctx.signal } : {}),
           });
@@ -496,10 +496,10 @@ export class Runner {
 
           for await (const part of sResult.fullStream as AsyncIterable<FullStreamPart>) {
             if (part.type === "text-delta" && !handoffOccurred) {
-              collectedText.push(part.textDelta!);
+              collectedText.push(part.delta!);
               yield {
                 type: "text_delta",
-                delta: part.textDelta!,
+                delta: part.delta!,
                 agent: currentAgent.name,
               };
             } else if (part.type === "tool-call") {
@@ -507,7 +507,7 @@ export class Runner {
                 type: "tool_call_start",
                 toolName: part.toolName!,
                 agent: currentAgent.name,
-                args: part.args,
+                args: part.input,
               };
               steps.push({
                 type: "tool_call",
@@ -516,7 +516,7 @@ export class Runner {
                 data: {
                   toolCallId: part.toolCallId,
                   toolName: part.toolName,
-                  args: part.args,
+                  input: part.input,
                 },
               });
             } else if (part.type === "tool-result") {
@@ -524,7 +524,7 @@ export class Runner {
                 type: "tool_call_end",
                 toolName: part.toolName!,
                 agent: currentAgent.name,
-                result: part.result,
+                output: part.output,
               };
               steps.push({
                 type: "tool_result",
@@ -533,11 +533,11 @@ export class Runner {
                 data: {
                   toolCallId: part.toolCallId,
                   toolName: part.toolName,
-                  result: part.result,
+                  output: part.output,
                 },
               });
 
-              if (!handoffOccurred && isHandoffResult(part.result)) {
+              if (!handoffOccurred && isHandoffResult(part.output)) {
                 handoffTargetConfig = part.toolName
                   ? (handoffMap.get(part.toolName) ?? null)
                   : null;
@@ -546,7 +546,7 @@ export class Runner {
                   for (const [, hc] of handoffMap) {
                     if (
                       hc.agent.name ===
-                      (part.result as { targetAgent: string }).targetAgent
+                      (part.output as { targetAgent: string }).targetAgent
                     ) {
                       handoffTargetConfig = hc;
                       break;
@@ -561,10 +561,10 @@ export class Runner {
             }
           }
 
-          const turnUsage = await sResult.usage;
-          usage.promptTokens += turnUsage.promptTokens;
-          usage.completionTokens += turnUsage.completionTokens;
-          usage.totalTokens += turnUsage.totalTokens;
+          const turnUsage = await sResult.totalUsage;
+          usage.inputTokens += turnUsage.inputTokens ?? 0;
+          usage.outputTokens += turnUsage.outputTokens ?? 0;
+          usage.totalTokens += turnUsage.totalTokens ?? 0;
 
           if (handoffOccurred && handoffTargetConfig) {
             const targetName = handoffTargetConfig.agent.name;
@@ -657,7 +657,7 @@ export class Runner {
           agentSpan?.end();
 
           if (currentAgent.config.outputGuardrails?.length) {
-            const outputMessages: CoreMessage[] = [
+            const outputMessages: ModelMessage[] = [
               { role: "assistant", content: finalText },
             ];
             const guardResult = await runGuardrails(
@@ -682,9 +682,7 @@ export class Runner {
           let output: unknown;
           if (currentAgent.config.outputSchema) {
             const parsed: unknown = JSON.parse(finalText);
-            output = (currentAgent.config.outputSchema as ZodType).parse(
-              parsed,
-            );
+            output = currentAgent.config.outputSchema.parse(parsed);
           } else {
             output = finalText;
           }

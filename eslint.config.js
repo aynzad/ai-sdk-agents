@@ -18,7 +18,7 @@ export default defineConfig(
         ...globals.node,
       },
       parserOptions: {
-        projectService: true,
+        project: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },

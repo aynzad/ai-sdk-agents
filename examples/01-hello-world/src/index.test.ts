@@ -37,22 +37,23 @@ describe("hello-world", () => {
   });
 
   it("should include usage information in the result", async () => {
+    const customUsage = {
+      inputTokens: 20,
+      outputTokens: 10,
+      totalTokens: 30,
+    };
     mockGenerateText.mockResolvedValue(
       makeGenerateTextResult({
         text: "Hello!",
-        usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+        usage: customUsage,
+        totalUsage: customUsage,
         steps: [
           {
-            stepType: "initial" as const,
             text: "Hello!",
             toolCalls: [],
             toolResults: [],
             finishReason: "stop" as const,
-            usage: {
-              promptTokens: 20,
-              completionTokens: 10,
-              totalTokens: 30,
-            },
+            usage: customUsage,
           },
         ],
       }),
@@ -65,8 +66,8 @@ describe("hello-world", () => {
     });
 
     const result = await Runner.run(agent, "Hello");
-    expect(result.usage.promptTokens).toBe(20);
-    expect(result.usage.completionTokens).toBe(10);
+    expect(result.usage.inputTokens).toBe(20);
+    expect(result.usage.outputTokens).toBe(10);
     expect(result.usage.totalTokens).toBe(30);
   });
 

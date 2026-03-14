@@ -40,7 +40,7 @@ const agent = new Agent({
   tools: {
     weather: {
       description: "Get the weather for a city",
-      parameters: z.object({ city: z.string() }),
+      inputSchema: z.object({ city: z.string() }),
       execute: async ({ city }) => `72°F and sunny in ${city}`,
     },
   },

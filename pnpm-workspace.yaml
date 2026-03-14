@@ -1,4 +1,10 @@
 packages:
-  - "."
-  - "docs"
-  - "examples/*"
+  - .
+  - docs
+  - examples/*
+
+ignoredBuiltDependencies:
+  - sharp
+
+onlyBuiltDependencies:
+  - esbuild
