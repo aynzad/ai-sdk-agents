@@ -17,8 +17,12 @@ type MovieRecommendation = z.infer<typeof MovieRecommendation>;
 
 const agent = new Agent({
   name: "Movie Recommender",
-  instructions:
-    "You are a movie recommendation expert. When asked for a recommendation, respond with a single movie in the exact JSON format requested. Be creative and suggest great films.",
+  instructions: [
+    "You are a movie recommendation expert.",
+    "Respond ONLY with a JSON object containing exactly these fields:",
+    '{ "title": string, "year": number, "genre": string, "synopsis": string, "rating": number (1-10) }',
+    "Do not include any text outside the JSON object. No markdown, no explanation.",
+  ].join(" "),
   model: ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b"),
   // model: openai("gpt-4o-mini"),
   // model: google("gemini-2.0-flash"),
