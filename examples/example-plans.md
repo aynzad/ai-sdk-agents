@@ -26,9 +26,9 @@ GOOGLE_GENERATIVE_AI_API_KEY=your-google-api-key
 
 # Ollama (local - requires ollama-ai-provider-v2 package)
 # Install Ollama: https://ollama.com
-# Pull model: ollama pull deepseek-llm:latest
+# Pull model: ollama pull qwen3.5
 OLLAMA_BASE_URL=http://localhost:11434/api
-OLLAMA_MODEL=deepseek-llm:latest
+OLLAMA_MODEL=qwen3.5
 ```
 
 ### Provider Setup Pattern
@@ -45,7 +45,7 @@ const ollama = createOllama({ baseURL: process.env.OLLAMA_BASE_URL });
 // Pick one:
 const model = openai("gpt-4o-mini");
 // const model = google("gemini-2.0-flash");
-// const model = ollama(process.env.OLLAMA_MODEL || "deepseek-llm:latest");
+// const model = ollama(process.env.OLLAMA_MODEL || "qwen3.5");
 ```
 
 ### Folder Naming Convention
@@ -109,10 +109,12 @@ parserOptions: {
 - `project: true` uses the **traditional TypeScript program creation** from `tsconfig.json`, which correctly follows pnpm's symlink structure in the IDE context.
 
 **Symptoms if `projectService: true` is used:**
+
 ```
 [ERROR] Unsafe assignment of an error typed value. (eslint)
 [ERROR] Unsafe call of a type that could not be resolved. (eslint)
 ```
+
 These appear only in the Cursor IDE (not in CLI). The root cause is not the application code but the ESLint type-checker's module resolution path.
 
 **Additional context:** The workspace VS Code settings (`"eslint.workingDirectories": [{ "mode": "auto" }]`) cause the ESLint extension to detect each example's `eslint.config.js` as a separate working directory. Changes to the root `eslint.config.js` (e.g. adding `examples/**` to ignores) have no effect on example files.
@@ -201,8 +203,14 @@ Before building the examples, the library itself must ship a `ai-sdk-agents/test
   "exports": {
     ".": { "import": "...", "require": "..." },
     "./test": {
-      "import": { "types": "./dist/test/index.d.ts", "default": "./dist/test/index.js" },
-      "require": { "types": "./dist/test/index.d.ts", "default": "./dist/test/index.cjs" }
+      "import": {
+        "types": "./dist/test/index.d.ts",
+        "default": "./dist/test/index.js"
+      },
+      "require": {
+        "types": "./dist/test/index.d.ts",
+        "default": "./dist/test/index.cjs"
+      }
     }
   }
 }
@@ -210,14 +218,14 @@ Before building the examples, the library itself must ship a `ai-sdk-agents/test
 
 **What `ai-sdk-agents/test` exports:**
 
-| Export | Purpose |
-|--------|---------|
-| `createMockModel()` | Returns a `LanguageModelV1` with `vi.fn()` stubs for `doGenerate`/`doStream` |
-| `makeGenerateTextResult(overrides?)` | Builds a complete `generateText` return value with sensible defaults |
-| `makeStreamTextResult(overrides?)` | Builds a complete `streamText` return value with async generators |
-| `makeToolCallStep(toolName, args, result?)` | Builds a step containing a tool call + optional tool result |
-| `makeHandoffStep(handoffToolName)` | Builds a step that triggers a handoff tool |
-| `setupMockAI()` | Returns `{ mockGenerateText, mockStreamText }` — hoisted mocks ready for `vi.mock("ai")` |
+| Export                                      | Purpose                                                                                  |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `createMockModel()`                         | Returns a `LanguageModelV1` with `vi.fn()` stubs for `doGenerate`/`doStream`             |
+| `makeGenerateTextResult(overrides?)`        | Builds a complete `generateText` return value with sensible defaults                     |
+| `makeStreamTextResult(overrides?)`          | Builds a complete `streamText` return value with async generators                        |
+| `makeToolCallStep(toolName, args, result?)` | Builds a step containing a tool call + optional tool result                              |
+| `makeHandoffStep(handoffToolName)`          | Builds a step that triggers a handoff tool                                               |
+| `setupMockAI()`                             | Returns `{ mockGenerateText, mockStreamText }` — hoisted mocks ready for `vi.mock("ai")` |
 
 ### `ai-sdk-agents/test` API Reference
 
@@ -245,8 +253,16 @@ makeGenerateTextResult({
     {
       stepType: "initial",
       text: "",
-      toolCalls: [{ toolCallId: "call-1", toolName: "getWeather", args: { location: "Tokyo" } }],
-      toolResults: [{ toolCallId: "call-1", toolName: "getWeather", result: { temp: 22 } }],
+      toolCalls: [
+        {
+          toolCallId: "call-1",
+          toolName: "getWeather",
+          args: { location: "Tokyo" },
+        },
+      ],
+      toolResults: [
+        { toolCallId: "call-1", toolName: "getWeather", result: { temp: 22 } },
+      ],
       finishReason: "tool-calls",
       usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
     },
@@ -283,7 +299,11 @@ makeStreamTextResult({
 ```typescript
 import { makeToolCallStep } from "ai-sdk-agents/test";
 
-const step = makeToolCallStep("getWeather", { location: "Tokyo" }, { temp: 22, conditions: "sunny" });
+const step = makeToolCallStep(
+  "getWeather",
+  { location: "Tokyo" },
+  { temp: 22, conditions: "sunny" },
+);
 // Returns a fully-formed step object with toolCalls and toolResults
 ```
 
@@ -307,7 +327,11 @@ const { mockGenerateText, mockStreamText } = vi.hoisted(() => setupMockAI());
 
 vi.mock("ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ai")>();
-  return { ...actual, generateText: mockGenerateText, streamText: mockStreamText };
+  return {
+    ...actual,
+    generateText: mockGenerateText,
+    streamText: mockStreamText,
+  };
 });
 ```
 
@@ -364,7 +388,7 @@ describe("hello-world", () => {
     mockGenerateText.mockResolvedValue(
       makeGenerateTextResult({
         text: "Code flows like stream\nBits align in harmony\nSilicon dreams wake",
-      })
+      }),
     );
 
     const agent = new Agent({
@@ -406,7 +430,11 @@ describe("agent-with-tools", () => {
       makeGenerateTextResult({
         text: "The weather in Tokyo is 22C and sunny.",
         steps: [
-          makeToolCallStep("getWeather", { location: "Tokyo" }, { temp: 22, conditions: "sunny" }),
+          makeToolCallStep(
+            "getWeather",
+            { location: "Tokyo" },
+            { temp: 22, conditions: "sunny" },
+          ),
           {
             stepType: "tool-result",
             text: "The weather in Tokyo is 22C and sunny.",
@@ -416,14 +444,16 @@ describe("agent-with-tools", () => {
             usage: { promptTokens: 20, completionTokens: 15, totalTokens: 35 },
           },
         ],
-      })
+      }),
     );
 
     const agent = new Agent({
       name: "Weather Agent",
       model: createMockModel(),
       instructions: "You help with weather.",
-      tools: { /* ... */ },
+      tools: {
+        /* ... */
+      },
     });
 
     const result = await Runner.run(agent, "What's the weather in Tokyo?");
@@ -457,10 +487,13 @@ describe("agent-handoff", () => {
   it("should hand off to the Spanish agent", async () => {
     mockGenerateText
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: "", steps: [makeHandoffStep("handoff_to_spanish_agent")] })
+        makeGenerateTextResult({
+          text: "",
+          steps: [makeHandoffStep("handoff_to_spanish_agent")],
+        }),
       )
       .mockResolvedValueOnce(
-        makeGenerateTextResult({ text: "Hola! Como puedo ayudarte?" })
+        makeGenerateTextResult({ text: "Hola! Como puedo ayudarte?" }),
       );
 
     const spanishAgent = new Agent({
@@ -486,12 +519,12 @@ describe("agent-handoff", () => {
 
 Once `ai-sdk-agents/test` is implemented, the library's own test files should also be refactored to use it:
 
-| File | Current Pattern | After Refactor |
-|------|----------------|----------------|
-| `src/agent/agent.test.ts` | Local `createMockModel()` | Import from `../test` |
-| `src/runner/runner.test.ts` | Local `createMockModel()`, `makeGenerateTextResult()`, `makeStreamTextResult()` | Import from `../test` |
-| `src/guardrail/guardrail.test.ts` | Local `createMockModel()`, `createGuardrailInput()` | Import from `../test` |
-| `src/handoff/handoff.test.ts` | Local `createMockModel()`, `createMockAgent()` | Import from `../test` |
+| File                              | Current Pattern                                                                 | After Refactor        |
+| --------------------------------- | ------------------------------------------------------------------------------- | --------------------- |
+| `src/agent/agent.test.ts`         | Local `createMockModel()`                                                       | Import from `../test` |
+| `src/runner/runner.test.ts`       | Local `createMockModel()`, `makeGenerateTextResult()`, `makeStreamTextResult()` | Import from `../test` |
+| `src/guardrail/guardrail.test.ts` | Local `createMockModel()`, `createGuardrailInput()`                             | Import from `../test` |
+| `src/handoff/handoff.test.ts`     | Local `createMockModel()`, `createMockAgent()`                                  | Import from `../test` |
 
 ### Implementation Order
 
@@ -585,13 +618,17 @@ test("handoff shows agent switch in UI", async ({ page }) => {
   await page.route("**/api/chat", async (route) => {
     callCount++;
     // First response includes a handoff event, second is the new agent's reply
-    const body = callCount === 1
-      ? `0:"Transferring to FAQ agent..."\n2:["handoff",{"from":"Triage","to":"FAQ Agent"}]\nd:{"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":5}}\n`
-      : `0:"Here is the answer to your question."\nd:{"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":5}}\n`;
+    const body =
+      callCount === 1
+        ? `0:"Transferring to FAQ agent..."\n2:["handoff",{"from":"Triage","to":"FAQ Agent"}]\nd:{"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":5}}\n`
+        : `0:"Here is the answer to your question."\nd:{"finishReason":"stop","usage":{"promptTokens":10,"completionTokens":5}}\n`;
 
     await route.fulfill({
       status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8", "X-Vercel-AI-Data-Stream": "v1" },
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Vercel-AI-Data-Stream": "v1",
+      },
       body,
     });
   });
@@ -606,12 +643,17 @@ test("handoff shows agent switch in UI", async ({ page }) => {
 ### Playwright Test: Human-in-the-Loop Approval (nextjs-human-in-the-loop)
 
 ```typescript
-test("tool call shows approval dialog and executes on approve", async ({ page }) => {
+test("tool call shows approval dialog and executes on approve", async ({
+  page,
+}) => {
   await page.route("**/api/chat", async (route) => {
     const body = `0:"I need to update your booking."\n2:["tool-approval",{"toolName":"updateBooking","args":{"seat":"12A"}}]\n`;
     await route.fulfill({
       status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8", "X-Vercel-AI-Data-Stream": "v1" },
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Vercel-AI-Data-Stream": "v1",
+      },
       body,
     });
   });
@@ -676,30 +718,30 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 
 ### What Each Example Tests
 
-| # | Folder | Test Type | Test Focus |
-|---|--------|-----------|-----------|
-| 1 | `01-hello-world` | Vitest | Agent returns expected text |
-| 2 | `02-agent-with-tools` | Vitest | Tool is called with correct args, result incorporated |
-| 3 | `03-streaming` | Vitest | Stream events arrive in correct order |
-| 4 | `04-structured-output` | Vitest | Output matches Zod schema |
-| 5 | `05-dynamic-instructions` | Vitest | Different contexts produce different instructions |
-| 6 | `06-lifecycle-hooks` | Vitest | Hooks fire in correct order with correct data |
-| 7 | `07-agent-handoff` | Vitest | Handoff transfers to correct agent |
-| 8 | `08-handoff-with-filters` | Vitest | Message history is filtered correctly |
-| 9 | `09-agent-as-tool` | Vitest | Sub-agent executes and returns result to parent |
-| 10 | `10-input-output-guardrails` | Vitest | Guardrails trip on bad input/output, pass on good |
-| 11 | `11-tool-guardrails` | Vitest | Tool guardrails block/allow based on behavior config |
-| 12 | `12-llm-guardrail` | Vitest | LLM judge trips when output is problematic |
-| 13 | `13-keyword-guardrail` | Vitest | Each built-in guardrail triggers on matching content |
-| 14 | `14-parallel-agents` | Vitest | All agents run concurrently, results collected |
-| 15 | `15-agent-routing` | Vitest | Correct specialist agent is selected per language |
-| 16 | `16-deterministic-flow` | Vitest | Pipeline stages execute in order with correct data flow |
-| 17 | `17-tracing` | Vitest | Trace spans are recorded for agent, tool, and handoff |
-| 18 | `18-customer-service-bot` | Vitest | Triage routes correctly, tools execute, multi-turn works |
-| 19 | `19-research-bot` | Vitest | Planner, searcher, writer execute in correct sequence |
-| 20 | `20-nextjs-chat` | Playwright | Chat input sends message, streamed response renders |
-| 21 | `21-nextjs-multi-agent` | Playwright | Handoff events show agent switch in UI |
-| 22 | `22-nextjs-human-in-the-loop` | Playwright | Approval dialog appears, approve/reject flow works |
+| #   | Folder                        | Test Type  | Test Focus                                               |
+| --- | ----------------------------- | ---------- | -------------------------------------------------------- |
+| 1   | `01-hello-world`              | Vitest     | Agent returns expected text                              |
+| 2   | `02-agent-with-tools`         | Vitest     | Tool is called with correct args, result incorporated    |
+| 3   | `03-streaming`                | Vitest     | Stream events arrive in correct order                    |
+| 4   | `04-structured-output`        | Vitest     | Output matches Zod schema                                |
+| 5   | `05-dynamic-instructions`     | Vitest     | Different contexts produce different instructions        |
+| 6   | `06-lifecycle-hooks`          | Vitest     | Hooks fire in correct order with correct data            |
+| 7   | `07-agent-handoff`            | Vitest     | Handoff transfers to correct agent                       |
+| 8   | `08-handoff-with-filters`     | Vitest     | Message history is filtered correctly                    |
+| 9   | `09-agent-as-tool`            | Vitest     | Sub-agent executes and returns result to parent          |
+| 10  | `10-input-output-guardrails`  | Vitest     | Guardrails trip on bad input/output, pass on good        |
+| 11  | `11-tool-guardrails`          | Vitest     | Tool guardrails block/allow based on behavior config     |
+| 12  | `12-llm-guardrail`            | Vitest     | LLM judge trips when output is problematic               |
+| 13  | `13-keyword-guardrail`        | Vitest     | Each built-in guardrail triggers on matching content     |
+| 14  | `14-parallel-agents`          | Vitest     | All agents run concurrently, results collected           |
+| 15  | `15-agent-routing`            | Vitest     | Correct specialist agent is selected per language        |
+| 16  | `16-deterministic-flow`       | Vitest     | Pipeline stages execute in order with correct data flow  |
+| 17  | `17-tracing`                  | Vitest     | Trace spans are recorded for agent, tool, and handoff    |
+| 18  | `18-customer-service-bot`     | Vitest     | Triage routes correctly, tools execute, multi-turn works |
+| 19  | `19-research-bot`             | Vitest     | Planner, searcher, writer execute in correct sequence    |
+| 20  | `20-nextjs-chat`              | Playwright | Chat input sends message, streamed response renders      |
+| 21  | `21-nextjs-multi-agent`       | Playwright | Handoff events show agent switch in UI                   |
+| 22  | `22-nextjs-human-in-the-loop` | Playwright | Approval dialog appears, approve/reject flow works       |
 
 ---
 
@@ -714,6 +756,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates a single agent with a name, model, and system instructions, then uses `Runner.run()` to send a prompt and print the result. The agent responds in haiku format to show that instructions are followed. Uses `chalk` to style the output with agent name and response.
 
 **Key Features:**
+
 - `Agent` (name, model, instructions)
 - `Runner.run()`
 - `RunResult` (output, usage)
@@ -729,6 +772,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates an agent with two tools: a weather lookup tool and a time zone tool, both defined with Zod schemas. The user asks a question that requires tool use (e.g., "What's the weather in Tokyo?"), and the agent automatically calls the appropriate tool, receives the result, and incorporates it into its response. Displays tool calls and results in the console with chalk formatting.
 
 **Key Features:**
+
 - `Agent` with `tools`
 - AI SDK `tool()` with Zod schemas
 - `Runner.run()` with tool execution
@@ -745,6 +789,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates an agent and uses `Runner.stream()` to get a streaming response. Iterates over `StreamEvent` objects to display text chunks as they arrive, agent start/end events, and tool call events. Shows how to access the final `RunResult` after the stream completes. Uses chalk to differentiate event types in the console output.
 
 **Key Features:**
+
 - `Runner.stream()`
 - `StreamResult.events` async iterable
 - `StreamEvent` types (textDelta, agentStart, agentEnd, toolCall, toolResult)
@@ -761,6 +806,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates an agent with an `outputSchema` defined as a Zod object (e.g., a movie recommendation with title, year, genre, and synopsis fields). The agent's response is automatically parsed and validated against the schema. Displays the typed, structured result in the console. Demonstrates type safety -- the result is fully typed in TypeScript.
 
 **Key Features:**
+
 - `Agent` with `outputSchema` (Zod)
 - Typed `RunResult.output`
 - Schema validation of LLM output
@@ -776,6 +822,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates an agent whose `instructions` is an async function receiving `RunContext`. The context carries user preferences (language, expertise level) injected via `RunConfig.context`. The instructions adapt the agent's behavior based on these preferences. Shows two runs with different contexts producing different response styles. Uses chalk to highlight the context values and response differences.
 
 **Key Features:**
+
 - `Agent` with `instructions` as async function
 - `RunContext<TContext>` with custom context type
 - `RunConfig.context` for dependency injection
@@ -792,6 +839,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates an agent with `AgentHooks` (onStart, onEnd, onToolCall, onToolResult, onHandoff, onError) and runs it with `RunHooks` (onRunStart, onRunEnd, onAgentStart, onAgentEnd). Each hook logs a styled message to the console showing when it fires and what data it receives. The agent has a tool so that tool-related hooks also fire. Demonstrates the full lifecycle of a run.
 
 **Key Features:**
+
 - `AgentHooks` (onStart, onEnd, onToolCall, onToolResult, onHandoff, onError)
 - `RunHooks` (onRunStart, onRunEnd, onAgentStart, onAgentEnd, onHandoff, onGuardrailTripped)
 - Hook execution order
@@ -807,6 +855,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Sets up two agents: a triage agent that speaks English and a Spanish assistant. The triage agent has a handoff to the Spanish assistant. When the user asks a question in Spanish, the triage agent recognizes this and triggers the handoff. The Spanish assistant then takes over and responds. Uses chalk to clearly show which agent is active and when the handoff occurs.
 
 **Key Features:**
+
 - `handoff()` function
 - `Agent` with `handoffs` array
 - `Runner.run()` with automatic handoff execution
@@ -823,6 +872,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Builds on the handoff example by adding message filters. Demonstrates `handoffFilters.removeToolMessages` (strip tool call/result messages before handoff), `handoffFilters.keepLast(n)` (keep only the last N messages), and `handoffFilters.compose()` (combine multiple filters). Shows the message history before and after filtering in the console to visualize what each filter does.
 
 **Key Features:**
+
 - `handoffFilters.removeToolMessages`
 - `handoffFilters.keepLast(n)`
 - `handoffFilters.keepConversation`
@@ -841,6 +891,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates a translator agent and exposes it as a tool using `agent.asTool()`. A main orchestrator agent has this translator tool available. When asked to translate text, the orchestrator delegates to the translator agent via the tool interface. Unlike handoffs, the orchestrator retains control and can use the translation result in its own response. Shows the difference between agent-as-tool (delegation) and handoff (transfer).
 
 **Key Features:**
+
 - `agent.asTool()` with `AsToolOptions`
 - Agent composition via tool interface
 - Orchestrator pattern (parent agent delegates to child)
@@ -856,6 +907,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates an agent with an input guardrail that checks for prompt injection attempts and an output guardrail that ensures responses don't contain sensitive information. Demonstrates what happens when a guardrail trips: the `GuardrailTripwiredError` is thrown with details about which guardrail was triggered and why. Shows both passing and failing cases.
 
 **Key Features:**
+
 - `guardrail()` function
 - `Agent` with `inputGuardrails` and `outputGuardrails`
 - `GuardrailTripwiredError` handling
@@ -872,6 +924,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates a tool wrapped with `guardedTool()` that has both input and output guardrails. The input guardrail validates that tool arguments meet safety criteria (e.g., no SQL injection in a database query tool). The output guardrail checks that tool results don't contain PII. Shows different `ToolGuardrailBehavior` options: `allow`, `rejectContent`, and `throwException`. Demonstrates `ToolGuardrailTripwiredError`.
 
 **Key Features:**
+
 - `guardedTool()`
 - `defineToolInputGuardrail()`
 - `defineToolOutputGuardrail()`
@@ -890,6 +943,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates an agent with an `llmGuardrail` that uses a separate model call to evaluate whether the agent's response is appropriate, factual, or meets quality criteria. The guardrail LLM acts as a judge, returning a structured assessment. If the judge determines the output is problematic, the guardrail trips. Shows the judge prompt, the evaluation result, and the trip decision.
 
 **Key Features:**
+
 - `llmGuardrail()` with model, promptBuilder, tripWhen
 - LLM-as-a-judge pattern
 - Structured evaluation from guardrail model
@@ -906,6 +960,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Shows three built-in guardrail helpers in action: `keywordGuardrail` blocks messages containing specific words, `maxLengthGuardrail` limits response length, and `regexGuardrail` matches patterns (e.g., blocking credit card numbers). Runs the agent with various inputs to trigger each guardrail and displays the results.
 
 **Key Features:**
+
 - `keywordGuardrail({ blockedKeywords, caseSensitive? })`
 - `maxLengthGuardrail({ maxLength })`
 - `regexGuardrail({ pattern, reason? })`
@@ -922,6 +977,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates three specialist agents (optimist, pessimist, neutral analyst) and runs them all in parallel using `Promise.all` with `Runner.run()`. Each agent analyzes the same topic from a different perspective. The results are collected and a final synthesizer agent combines the three analyses into a balanced report. Demonstrates concurrent agent execution for speed and diverse outputs.
 
 **Key Features:**
+
 - Multiple `Runner.run()` calls in `Promise.all`
 - Agent specialization via instructions
 - Result aggregation pattern
@@ -938,6 +994,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates a triage agent with handoffs to three language-specific agents (English, French, German). The triage agent detects the user's language and hands off to the appropriate specialist. Each specialist agent has domain-specific instructions and tools. Shows how handoffs enable clean separation of concerns in multi-agent systems.
 
 **Key Features:**
+
 - Triage/router agent pattern
 - Multiple `handoff()` targets
 - Language detection and routing
@@ -954,6 +1011,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Creates a three-stage pipeline: (1) a research agent with `outputSchema` that extracts key facts, (2) a quality-check agent that validates the facts, and (3) a writer agent that produces a final summary. Each agent's structured output is fed as input to the next agent. The flow is deterministic -- no handoffs or routing, just sequential execution with validation gates between stages.
 
 **Key Features:**
+
 - Sequential `Runner.run()` calls
 - `outputSchema` for structured intermediate results
 - Pipeline/chain pattern
@@ -970,6 +1028,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** Sets up `consoleTraceProcessor` and `memoryTraceProcessor`, then runs an agent with tools and a handoff. The console processor prints trace spans in real-time showing agent execution, LLM calls, tool invocations, and handoffs. After the run, the memory processor's collected spans are displayed in a tree structure. Shows how to add custom spans with `trace()` and inspect trace data for debugging.
 
 **Key Features:**
+
 - `addTraceProcessor()` / `removeTraceProcessor()`
 - `consoleTraceProcessor()` for real-time logging
 - `memoryTraceProcessor()` for span collection
@@ -988,6 +1047,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** An airline customer service bot with three agents: a triage agent that classifies the customer's intent, an FAQ agent with a knowledge-lookup tool, and a booking agent with seat-change and flight-info tools. The triage agent hands off to the appropriate specialist. Runs as an interactive CLI loop where the user can have a multi-turn conversation. Demonstrates tools, handoffs, and multi-agent orchestration in a realistic scenario.
 
 **Key Features:**
+
 - Multi-agent architecture (triage + specialists)
 - `handoff()` with conditional routing
 - Multiple tools per agent
@@ -1005,6 +1065,7 @@ test("tool call shows approval dialog and executes on approve", async ({ page })
 **Description:** A research workflow with three agents coordinated by a manager: (1) a planner agent that suggests search terms given a research query, (2) a search agent that looks up information and produces summaries, and (3) a writer agent that synthesizes all summaries into a coherent report. The manager runs the planner, dispatches multiple search agents in parallel, collects results, and feeds them to the writer. Outputs the final report to the console with chalk formatting.
 
 **Key Features:**
+
 - Multi-agent orchestration (planner + searcher + writer)
 - `agent.asTool()` or sequential `Runner.run()` for coordination
 - Parallel search execution with `Promise.all`
@@ -1033,6 +1094,7 @@ pnpm dlx shadcn@latest add @ai-elements/message
 ```
 
 **Key Features:**
+
 - Next.js App Router API route (`app/api/chat/route.ts`)
 - `Runner.stream()` on the server
 - AI SDK `useChat` hook on the client (see `/ai-sdk` skill for current API)
@@ -1041,6 +1103,7 @@ pnpm dlx shadcn@latest add @ai-elements/message
 - Server-to-client streaming
 
 **Playwright E2E Tests (see `/playwright-best-practices` skill):**
+
 - Send a message and verify streamed response renders
 - Verify message roles (user vs assistant) display correctly
 - Test empty state and loading indicators
@@ -1063,6 +1126,7 @@ pnpm dlx shadcn@latest add @ai-elements/message
 ```
 
 **Key Features:**
+
 - Multi-agent with `handoff()` on the server
 - Streaming handoff events to the client
 - `@ai-elements/message` customized with agent name badges (modify `message.tsx` to add agent identity -- see `/ai-elements` skill for customization patterns)
@@ -1070,6 +1134,7 @@ pnpm dlx shadcn@latest add @ai-elements/message
 - Real-time agent switching visible in the UI
 
 **Playwright E2E Tests (see `/playwright-best-practices` skill):**
+
 - Verify handoff event shows agent name change in UI
 - Test that messages from different agents have distinct indicators
 - Test multi-turn conversation across agent handoffs
@@ -1092,6 +1157,7 @@ pnpm dlx shadcn@latest add @ai-elements/message
 ```
 
 **Key Features:**
+
 - `AgentHooks.onToolCall` for interception
 - `@ai-elements/message` for conversation display (see `/ai-elements` skill)
 - Custom approval card component (tool name, args preview, approve/reject buttons)
@@ -1100,6 +1166,7 @@ pnpm dlx shadcn@latest add @ai-elements/message
 - AI SDK `useChat` with tool call handling (see `/ai-sdk` skill for `InferAgentUIMessage` type safety)
 
 **Playwright E2E Tests (see `/playwright-best-practices` skill):**
+
 - Verify tool call triggers approval dialog with correct tool name and arguments
 - Test approve flow: dialog dismisses, tool executes, agent continues
 - Test reject flow: dialog dismisses, agent receives rejection and responds accordingly
@@ -1215,12 +1282,12 @@ jobs:
 
 **Jobs summary:**
 
-| Job | What it checks | Runs on |
-|-----|---------------|---------|
-| `lint` | ESLint rules + Prettier formatting | ubuntu-latest |
-| `type-check` | TypeScript `tsc --noEmit` | ubuntu-latest |
-| `test` | Vitest unit tests (mocked LLM) | Node 18, 20, 22 |
-| `build` | Vite build + type declarations + verify dist artifacts | ubuntu-latest |
+| Job          | What it checks                                         | Runs on         |
+| ------------ | ------------------------------------------------------ | --------------- |
+| `lint`       | ESLint rules + Prettier formatting                     | ubuntu-latest   |
+| `type-check` | TypeScript `tsc --noEmit`                              | ubuntu-latest   |
+| `test`       | Vitest unit tests (mocked LLM)                         | Node 18, 20, 22 |
+| `build`      | Vite build + type declarations + verify dist artifacts | ubuntu-latest   |
 
 ---
 
@@ -1230,13 +1297,13 @@ Runs on every push and PR that touches the `examples/` folder or the library sou
 
 **Root scripts available:**
 
-| Script | No arg (all examples) | With number (e.g. `1`) |
-|--------|----------------------|----------------------|
-| `pnpm examples:test` | Tests all examples | Tests example 01 only |
-| `pnpm examples:lint` | Lints all examples | Lints example 01 only |
-| `pnpm examples:format` | Formats all examples | Formats example 01 only |
+| Script                     | No arg (all examples)    | With number (e.g. `1`)      |
+| -------------------------- | ------------------------ | --------------------------- |
+| `pnpm examples:test`       | Tests all examples       | Tests example 01 only       |
+| `pnpm examples:lint`       | Lints all examples       | Lints example 01 only       |
+| `pnpm examples:format`     | Formats all examples     | Formats example 01 only     |
 | `pnpm examples:type-check` | Type-checks all examples | Type-checks example 01 only |
-| `pnpm examples:dev 1` | -- | Runs example 01 |
+| `pnpm examples:dev 1`      | --                       | Runs example 01             |
 
 **Triggers:** Push to `main`, all pull requests -- when `examples/**`, `src/**`, or `package.json` change
 
@@ -1323,10 +1390,10 @@ jobs:
 
 **Jobs summary:**
 
-| Job | What it does | Runs on |
-|-----|-------------|---------|
-| `check-all-examples` | Format check + type-check + lint + Vitest for all examples via root scripts | ubuntu-latest |
-| `test-nextjs-examples` | Build + Playwright E2E for each Next.js example (needs real browser) | ubuntu-latest, matrix per Next.js app |
+| Job                    | What it does                                                                | Runs on                               |
+| ---------------------- | --------------------------------------------------------------------------- | ------------------------------------- |
+| `check-all-examples`   | Format check + type-check + lint + Vitest for all examples via root scripts | ubuntu-latest                         |
+| `test-nextjs-examples` | Build + Playwright E2E for each Next.js example (needs real browser)        | ubuntu-latest, matrix per Next.js app |
 
 **Key design decisions:**
 
@@ -1335,7 +1402,7 @@ jobs:
 - **`fail-fast: false`** -- One broken Next.js example doesn't block testing the rest.
 - **Library is built first** -- `pnpm build` at the root ensures `ai-sdk-agents` (including `ai-sdk-agents/test`) is available to all examples via `workspace:*`.
 - **Playwright artifacts** -- On failure, the Playwright HTML report is uploaded for debugging.
-- **Triggers on `src/**` changes** -- Library changes might break examples, so they re-test.
+- **Triggers on `src/**` changes\*\* -- Library changes might break examples, so they re-test.
 
 ---
 
