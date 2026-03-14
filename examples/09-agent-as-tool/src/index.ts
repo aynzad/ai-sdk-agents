@@ -18,7 +18,7 @@ const translator = new Agent({
 const orchestrator = new Agent({
   name: "Orchestrator",
   instructions:
-    "You are a helpful assistant. When asked to translate something, use the translator tool.",
+    "You are a helpful assistant that translates text. Always call the translate tool to perform translations. Never translate text yourself - delegate to the tool.",
   model,
   tools: {
     translate: translator.asTool({

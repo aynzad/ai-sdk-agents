@@ -21,16 +21,22 @@ const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
 
 const planner = new Agent({
   name: "Planner",
-  instructions:
+  instructions: [
     "Given a research topic, suggest 3 search terms to investigate.",
+    'Respond ONLY with a JSON object: { "searchTerms": ["term1", "term2", "term3"], "topic": "the topic" }',
+    "No markdown, no explanation - just the JSON object.",
+  ].join(" "),
   model,
   outputSchema: PlanSchema,
 });
 
 const searcher = new Agent({
   name: "Searcher",
-  instructions:
-    "Given a search term, produce a brief summary and key facts. Simulate research with realistic content.",
+  instructions: [
+    "Given a search term, produce a brief summary and key facts with realistic content.",
+    'Respond ONLY with a JSON object: { "summary": "brief summary", "keyFacts": ["fact1", "fact2", ...] }',
+    "No markdown, no explanation - just the JSON object.",
+  ].join(" "),
   model,
   outputSchema: SearchResultSchema,
 });

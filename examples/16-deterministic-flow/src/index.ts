@@ -23,16 +23,22 @@ const model = ollama(process.env.OLLAMA_MODEL ?? "qwen3:4b");
 
 const researchAgent = new Agent({
   name: "Research Agent",
-  instructions:
-    "You are a research assistant. Given a topic, return a list of key facts, the topic name, and your confidence level (0-1) in the accuracy of the facts.",
+  instructions: [
+    "You are a research assistant. Given a topic, return key facts about it.",
+    'Respond ONLY with a JSON object: { "facts": ["fact1", "fact2", ...], "topic": "topic name", "confidence": 0.0-1.0 }',
+    "No markdown, no explanation - just the JSON object.",
+  ].join(" "),
   model,
   outputSchema: ResearchOutput,
 });
 
 const qualityCheckAgent = new Agent({
   name: "Quality Check Agent",
-  instructions:
-    "You are a quality reviewer. Given research facts, evaluate their accuracy and completeness. Return whether the research is approved, any issues found, and a quality score from 0-10.",
+  instructions: [
+    "You are a quality reviewer. Evaluate the accuracy of research facts.",
+    'Respond ONLY with a JSON object: { "approved": true/false, "issues": ["issue1", ...], "score": 0-10 }',
+    "No markdown, no explanation - just the JSON object.",
+  ].join(" "),
   model,
   outputSchema: QualityCheckOutput,
 });
