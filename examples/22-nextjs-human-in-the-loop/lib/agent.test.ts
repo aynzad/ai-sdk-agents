@@ -14,35 +14,53 @@ vi.mock("ai", async (importOriginal) => {
   return { ...actual, generateText: mockGenerateText };
 });
 
-describe("human-in-the-loop agent", () => {
+describe("Human-in-the-loop Agent", () => {
   beforeEach(() => {
     mockGenerateText.mockReset();
   });
 
-  it("should respond to a record lookup request", async () => {
+  it("should create an agent with getRecord tool and onToolCall hook", () => {
+    const onToolCall = vi.fn();
+
+    const agent = new Agent({
+      name: "Database Agent",
+      model: createMockModel(),
+      instructions: "You are a database assistant.",
+      tools: { getRecord: {} as never },
+      hooks: { onToolCall },
+    });
+
+    expect(agent.name).toBe("Database Agent");
+    expect(agent.config.hooks).toBeDefined();
+    expect(agent.config.hooks).toHaveProperty("onToolCall");
+    expect(agent.config.tools).toHaveProperty("getRecord");
+  });
+
+  it("should respond to a record lookup via Runner.run()", async () => {
     mockGenerateText.mockResolvedValue(
       makeGenerateTextResult({
-        text: "I found record #123: Acme Corporation, contact@acme.com, active status.",
+        text: "Found record #123: Acme Corporation, active status, balance $15,250.",
       }),
     );
 
     const agent = new Agent({
       name: "Database Agent",
       model: createMockModel(),
-      instructions: "You are a helpful database assistant.",
+      instructions: "You are a database assistant.",
     });
 
     const result = await Runner.run(agent, "Look up record #123");
     expect(result.output).toContain("Acme");
+    expect(result.agent).toBe("Database Agent");
   });
 
-  it("should use correct system instructions", async () => {
+  it("should use correct system instructions referencing human approval", async () => {
     mockGenerateText.mockResolvedValue(
-      makeGenerateTextResult({ text: "Response" }),
+      makeGenerateTextResult({ text: "How can I help?" }),
     );
 
     const instructions =
-      "You are a helpful database assistant. The updateRecord tool requires human approval.";
+      "You are a database assistant. The updateRecord tool requires human approval.";
 
     const agent = new Agent({
       name: "Database Agent",
@@ -54,7 +72,6 @@ describe("human-in-the-loop agent", () => {
 
     expect(mockGenerateText).toHaveBeenCalledOnce();
     const call = mockGenerateText.mock.calls[0][0] as Record<string, unknown>;
-    expect(call.system).toContain("database assistant");
     expect(call.system).toContain("human approval");
   });
 });
