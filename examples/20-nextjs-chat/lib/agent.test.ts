@@ -14,12 +14,12 @@ vi.mock("ai", async (importOriginal) => {
   return { ...actual, generateText: mockGenerateText };
 });
 
-describe("chat agent", () => {
+describe("Chat Agent with Runner", () => {
   beforeEach(() => {
     mockGenerateText.mockReset();
   });
 
-  it("should respond to a simple message", async () => {
+  it("should run agent and return a response via Runner.run()", async () => {
     mockGenerateText.mockResolvedValue(
       makeGenerateTextResult({
         text: "Hello! How can I help you today?",
@@ -35,26 +35,63 @@ describe("chat agent", () => {
 
     const result = await Runner.run(agent, "Hello!");
     expect(result.output).toContain("Hello");
-    expect(result.output).toContain("help");
+    expect(result.agent).toBe("Chat Agent");
   });
 
-  it("should use the correct system instructions", async () => {
+  it("should pass instructions as system prompt to the model", async () => {
     mockGenerateText.mockResolvedValue(
       makeGenerateTextResult({ text: "Response" }),
     );
 
+    const instructions =
+      "You are a helpful, friendly assistant. Respond concisely and clearly.";
+
     const agent = new Agent({
       name: "Chat Agent",
       model: createMockModel(),
-      instructions:
-        "You are a helpful, friendly assistant. Respond concisely and clearly.",
+      instructions,
     });
 
     await Runner.run(agent, "Hi");
 
     expect(mockGenerateText).toHaveBeenCalledOnce();
     const call = mockGenerateText.mock.calls[0][0] as Record<string, unknown>;
-    expect(call.system).toContain("helpful");
-    expect(call.system).toContain("friendly");
+    expect(call.system).toBe(instructions);
+  });
+
+  it("should include usage information in the RunResult", async () => {
+    const customUsage = {
+      inputTokens: 25,
+      outputTokens: 15,
+      totalTokens: 40,
+    };
+    mockGenerateText.mockResolvedValue(
+      makeGenerateTextResult({
+        text: "Here is my response.",
+        usage: customUsage,
+        totalUsage: customUsage,
+        steps: [
+          {
+            text: "Here is my response.",
+            toolCalls: [],
+            toolResults: [],
+            finishReason: "stop" as const,
+            usage: customUsage,
+          },
+        ],
+      }),
+    );
+
+    const agent = new Agent({
+      name: "Chat Agent",
+      model: createMockModel(),
+      instructions: "Be helpful.",
+    });
+
+    const result = await Runner.run(agent, "Test");
+    expect(result.usage.inputTokens).toBe(25);
+    expect(result.usage.outputTokens).toBe(15);
+    expect(result.usage.totalTokens).toBe(40);
+    expect(result.steps.length).toBeGreaterThanOrEqual(1);
   });
 });

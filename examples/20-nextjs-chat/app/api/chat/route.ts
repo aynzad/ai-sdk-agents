@@ -1,17 +1,14 @@
-import { streamText, type UIMessage, convertToModelMessages } from "ai";
-import { google } from "@ai-sdk/google";
+import { type UIMessage } from "ai";
+import { chatAgent } from "@/lib/agent";
+import { streamAgentResponse } from "@/lib/stream-agent";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages } = (await req.json()) as { messages: UIMessage[] };
 
-  const result = streamText({
-    model: google("gemini-2.5-flash"),
-    system:
-      "You are a helpful, friendly assistant. Respond concisely and clearly.",
-    messages: await convertToModelMessages(messages),
+  return streamAgentResponse({
+    agent: chatAgent,
+    messages,
   });
-
-  return result.toUIMessageStreamResponse();
 }
