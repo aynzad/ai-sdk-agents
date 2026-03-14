@@ -6,30 +6,34 @@ export default defineConfig({
   plugins: [
     dts({
       include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
       outDir: 'dist',
-      rollupTypes: true,  // Bundle all .d.ts into a single file
+      entryRoot: 'src',
+      rollupTypes: false,
     }),
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: 'AiSdkAgents',
+      entry: {
+        'ai-sdk-agents': resolve(__dirname, 'src/index.ts'),
+        'test/index': resolve(__dirname, 'src/test/index.ts'),
+      },
       formats: ['es', 'cjs'],
-      fileName: (format) =>
-        format === 'es' ? 'ai-sdk-agents.js' : 'ai-sdk-agents.cjs',
+      fileName: (format, entryName) =>
+        `${entryName}${format === 'es' ? '.js' : '.cjs'}`,
     },
     rollupOptions: {
-      // Externalize peer deps — never bundle these
-      external: ['ai', 'zod'],
+      external: ['ai', 'zod', 'vitest'],
       output: {
         globals: {
           ai: 'ai',
           zod: 'zod',
+          vitest: 'vitest',
         },
       },
     },
     sourcemap: true,
-    minify: false,       // Keep readable for debugging
+    minify: false,
     target: 'es2022',
     outDir: 'dist',
     emptyOutDir: true,

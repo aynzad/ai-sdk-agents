@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { CoreMessage } from "ai";
 import type * as AiModule from "ai";
-import type { RunContext, GuardrailInput, Guardrail } from "@/types";
+import type { Guardrail } from "@/types";
 import {
   guardrail,
   llmGuardrail,
@@ -10,32 +10,7 @@ import {
   maxLengthGuardrail,
   regexGuardrail,
 } from "./guardrail";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function createRunContext(
-  overrides: Partial<RunContext<unknown>> = {},
-): RunContext<unknown> {
-  return {
-    context: {},
-    agent: "test-agent",
-    traceId: "trace-123",
-    turn: 1,
-    ...overrides,
-  };
-}
-
-function createGuardrailInput(
-  overrides: Partial<GuardrailInput> = {},
-): GuardrailInput {
-  return {
-    messages: [{ role: "user", content: "Hello world" }],
-    agentName: "test-agent",
-    ...overrides,
-  };
-}
+import { createRunContext, createGuardrailInput } from "@/test";
 
 const ctx = createRunContext();
 

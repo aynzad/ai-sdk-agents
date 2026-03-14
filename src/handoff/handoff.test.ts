@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { LanguageModelV1, CoreMessage } from "ai";
+import type { CoreMessage } from "ai";
 import type { HandoffConfig } from "@/types";
 import { Agent } from "@/agent/agent";
 import {
@@ -9,17 +9,7 @@ import {
   isHandoffResult,
   handoffFilters,
 } from "./handoff";
-
-function createMockModel(): LanguageModelV1 {
-  return {
-    specificationVersion: "v1",
-    provider: "test",
-    modelId: "test-model",
-    defaultObjectGenerationMode: undefined,
-    doGenerate: vi.fn(),
-    doStream: vi.fn(),
-  };
-}
+import { createMockModel } from "@/test";
 
 const mockModel = createMockModel();
 

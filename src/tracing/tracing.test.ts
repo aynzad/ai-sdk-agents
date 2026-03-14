@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { TraceProcessor, TraceSpan } from "@/types";
+import type { TraceSpan } from "@/types";
 import {
   Trace,
   trace,
@@ -9,23 +9,9 @@ import {
   consoleTraceProcessor,
   memoryTraceProcessor,
 } from "./tracing";
+import { createMockProcessor } from "@/test";
 
 /* eslint-disable @typescript-eslint/unbound-method */
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function createMockProcessor(
-  overrides: Partial<TraceProcessor> = {},
-): TraceProcessor {
-  return {
-    onTraceStart: vi.fn(),
-    onSpan: vi.fn(),
-    onTraceEnd: vi.fn(),
-    ...overrides,
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Cleanup global state between tests

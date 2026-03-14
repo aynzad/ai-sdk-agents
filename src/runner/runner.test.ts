@@ -16,6 +16,11 @@ import {
   isGuardedTool,
 } from "@/guardrail/tool-guardrail";
 import { Runner } from "./runner";
+import {
+  createMockModel,
+  makeGenerateTextResult,
+  makeStreamTextResult,
+} from "@/test";
 
 // ---------------------------------------------------------------------------
 // Module-level mocks for generateText and streamText
@@ -44,96 +49,6 @@ interface GenerateTextCall {
   tools?: Record<string, unknown>;
   maxSteps?: number;
   [key: string]: unknown;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function createMockModel(): LanguageModelV1 {
-  return {
-    specificationVersion: "v1",
-    provider: "test",
-    modelId: "test-model",
-    defaultObjectGenerationMode: undefined,
-    doGenerate: vi.fn(),
-    doStream: vi.fn(),
-  };
-}
-
-function makeGenerateTextResult(overrides: Record<string, unknown> = {}) {
-  return {
-    text: "Hello!",
-    steps: [
-      {
-        stepType: "initial" as const,
-        text: "Hello!",
-        toolCalls: [],
-        toolResults: [],
-        finishReason: "stop" as const,
-        usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
-      },
-    ],
-    toolCalls: [],
-    toolResults: [],
-    usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
-    finishReason: "stop" as const,
-    response: { id: "resp-1", model: "test-model", timestamp: new Date() },
-    ...overrides,
-  };
-}
-
-interface StreamTextMockOverrides {
-  textDeltas?: string[];
-  fullStreamParts?: Array<Record<string, unknown>>;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-  steps?: Array<Record<string, unknown>>;
-  text?: string;
-  finishReason?: string;
-}
-
-function makeStreamTextResult(overrides: StreamTextMockOverrides = {}) {
-  const textDeltas = overrides.textDeltas ?? ["Hello", "!"];
-  const text = overrides.text ?? textDeltas.join("");
-  const usage = overrides.usage ?? {
-    promptTokens: 10,
-    completionTokens: 5,
-    totalTokens: 15,
-  };
-  const parts = overrides.fullStreamParts ?? [
-    ...textDeltas.map((d) => ({ type: "text-delta" as const, textDelta: d })),
-    {
-      type: "finish" as const,
-      finishReason: overrides.finishReason ?? "stop",
-      usage,
-    },
-  ];
-
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async function* iterate<T>(items: T[]): AsyncGenerator<T> {
-    yield* items;
-  }
-
-  return {
-    fullStream: iterate(parts),
-    textStream: iterate(textDeltas),
-    text: Promise.resolve(text),
-    usage: Promise.resolve(usage),
-    steps: Promise.resolve(overrides.steps ?? []),
-    toolCalls: Promise.resolve([]),
-    toolResults: Promise.resolve([]),
-    finishReason: Promise.resolve(overrides.finishReason ?? "stop"),
-    response: Promise.resolve({
-      id: "resp-1",
-      model: "test-model",
-      timestamp: new Date(),
-      messages: [],
-    }),
-  };
 }
 
 interface StreamTextCall {

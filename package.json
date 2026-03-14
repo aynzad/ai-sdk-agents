@@ -18,6 +18,16 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/ai-sdk-agents.cjs"
       }
+    },
+    "./test": {
+      "import": {
+        "types": "./dist/test/index.d.ts",
+        "default": "./dist/test/index.js"
+      },
+      "require": {
+        "types": "./dist/test/index.d.ts",
+        "default": "./dist/test/index.cjs"
+      }
     }
   },
   "files": [
@@ -40,6 +50,11 @@
     "changeset": "changeset",
     "release": "changeset publish",
     "build:ci": "pnpm run build",
+    "examples:dev": "bash scripts/examples-dev.sh",
+    "examples:test": "bash scripts/examples-test.sh",
+    "examples:lint": "bash scripts/examples-lint.sh",
+    "examples:format": "bash scripts/examples-format.sh",
+    "examples:type-check": "bash scripts/examples-type-check.sh",
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs build",
     "docs:scripts:check": "pnpm --filter docs astro check"

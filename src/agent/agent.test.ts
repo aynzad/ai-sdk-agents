@@ -1,33 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import type { z } from "zod";
 import type { LanguageModelV1 } from "ai";
-import type { RunContext } from "@/types";
 import { Agent } from "./agent";
-
-function createMockModel(): LanguageModelV1 {
-  return {
-    specificationVersion: "v1",
-    provider: "test",
-    modelId: "test-model",
-    defaultObjectGenerationMode: undefined,
-    doGenerate: vi.fn(),
-    doStream: vi.fn(),
-  };
-}
+import { createMockModel, createRunContext } from "@/test";
 
 const mockModel = createMockModel();
-
-function createRunContext(
-  overrides: Partial<RunContext<unknown>> = {},
-): RunContext<unknown> {
-  return {
-    context: {},
-    agent: "test-agent",
-    traceId: "trace-123",
-    turn: 1,
-    ...overrides,
-  };
-}
 
 describe("Agent", () => {
   describe("constructor", () => {

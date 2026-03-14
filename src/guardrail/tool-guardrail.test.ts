@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import type {
-  RunContext,
-  ToolInputGuardrail,
-  ToolOutputGuardrail,
-} from "@/types";
+import type { ToolInputGuardrail, ToolOutputGuardrail } from "@/types";
 import { ToolGuardrailTripwiredError } from "@/types";
 import {
   ToolGuardrailBehaviorFactory,
@@ -18,26 +14,11 @@ import {
   wrapToolWithGuardrails,
   type GuardedTool,
 } from "./tool-guardrail";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+import { createRunContext } from "@/test";
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 1));
 
-function createRunContext(
-  overrides?: Partial<RunContext>,
-): RunContext<unknown> {
-  return {
-    context: {},
-    agent: "test-agent",
-    traceId: "trace-1",
-    turn: 1,
-    ...overrides,
-  };
-}
-
-const ctx = createRunContext();
+const ctx = createRunContext({ traceId: "trace-1" });
 
 // ---------------------------------------------------------------------------
 // Group 10: ToolGuardrailTripwiredError
