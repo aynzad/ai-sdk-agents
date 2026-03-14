@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "examples/**"
+      - "*.md"
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "examples/**"
+      - "*.md"
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: true
+      - name: Lint
+        run: pnpm lint
+      - name: Format check
+        run: pnpm prettier --check "src/**/*.ts"
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: true
+      - name: Type check
+        run: pnpm type-check
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: true
+      - name: Build library
+        run: pnpm build
+      - name: Run tests
+        run: pnpm test
+      - name: Run tests with coverage
+        if: matrix.node-version == 20
+        run: pnpm test:coverage
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: true
+      - name: Build library
+        run: pnpm build
+      - name: Build types
+        run: pnpm build:types
+      - name: Verify dist output
+        run: |
+          test -f dist/ai-sdk-agents.js
+          test -f dist/ai-sdk-agents.cjs
+          test -f dist/index.d.ts

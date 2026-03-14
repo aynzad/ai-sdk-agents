@@ -1,0 +1,79 @@
+name: CI Examples
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "examples/**"
+      - "src/**"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+  pull_request:
+    paths:
+      - "examples/**"
+      - "src/**"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+jobs:
+  check-all-examples:
+    name: Lint, Format, Type-check & Test All Examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: true
+      - name: Build library
+        run: pnpm build
+      - name: Format check
+        run: pnpm examples:format
+      - name: Type check
+        run: pnpm examples:type-check
+      - name: Lint
+        run: pnpm examples:lint
+      - name: Test
+        run: pnpm examples:test
+
+  test-nextjs-examples:
+    name: "Next.js E2E: ${{ matrix.example }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - 20-nextjs-chat
+          - 21-nextjs-multi-agent
+          - 22-nextjs-human-in-the-loop
+          - 23-nextjs-guardrails
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: true
+      - name: Build library
+        run: pnpm build
+      - name: Build Next.js app
+        run: pnpm build
+        working-directory: examples/${{ matrix.example }}
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: examples/${{ matrix.example }}
+      - name: Run Playwright E2E tests
+        run: pnpm test:e2e
+        working-directory: examples/${{ matrix.example }}
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.example }}
+          path: examples/${{ matrix.example }}/playwright-report/
+          retention-days: 7
