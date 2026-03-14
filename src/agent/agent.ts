@@ -5,19 +5,10 @@ import type {
   AgentInstance,
   AsToolOptions,
   RunContext,
-  RunResult,
 } from "@/types";
+import { Runner } from "@/runner/runner";
 
 const DEFAULT_MAX_TOOL_ROUNDTRIPS = 10;
-
-interface RunnerModule {
-  Runner: {
-    run(
-      agent: Agent<unknown, unknown>,
-      input: string,
-    ): Promise<RunResult<unknown>>;
-  };
-}
 
 export class Agent<
   TContext = unknown,
@@ -68,11 +59,7 @@ export class Agent<
       description,
       inputSchema,
       execute: async ({ message }: { message: string }) => {
-        const runnerPath = "../runner/runner.js";
-        const mod = (await import(
-          /* @vite-ignore */ runnerPath
-        )) as RunnerModule;
-        const result = await mod.Runner.run(agentRef, message);
+        const result = await Runner.run(agentRef, message);
         return result.output;
       },
     } as Tool;
