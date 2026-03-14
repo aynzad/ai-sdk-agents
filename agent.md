@@ -6,7 +6,7 @@
 
 ## What This Is
 
-A thin (~800-1200 lines), zero-runtime-dependency TypeScript library that adds multi-agent orchestration on top of Vercel AI SDK's existing primitives (`generateText`, `streamText`, `tool()`). It does NOT replace AI SDK — it composes on top of it.
+A thin (~2000 lines of source), zero-runtime-dependency TypeScript library that adds multi-agent orchestration on top of Vercel AI SDK's existing primitives (`generateText`, `streamText`, `tool()`). It does NOT replace AI SDK — it composes on top of it.
 
 ## What This Is NOT
 
@@ -22,7 +22,7 @@ A thin (~800-1200 lines), zero-runtime-dependency TypeScript library that adds m
 2. **Zero runtime dependencies.** Only `ai` and `zod` as peer deps. Nothing else ships.
 3. **Type-safe by default.** Generic context types flow through agents, tools, guardrails, and hooks.
 4. **Eject cleanly.** If a user outgrows this library, they can replace any piece with raw AI SDK calls.
-5. **Small API surface.** Five exports cover everything: `Agent`, `handoff`, `guardrail`, `Runner`, `trace`.
+5. **Small API surface.** Core exports: `Agent`, `Runner`, `Trace` (classes), `handoff`/`handoffFilters` (handoffs), `guardrail`/`llmGuardrail`/`keywordGuardrail`/`maxLengthGuardrail`/`regexGuardrail` (guardrails), `guardedTool`/`defineToolInputGuardrail`/`defineToolOutputGuardrail` (tool guardrails), `trace`/`addTraceProcessor`/`consoleTraceProcessor`/`memoryTraceProcessor` (tracing), plus 4 error classes and re-exported AI SDK types.
 
 ---
 
@@ -54,18 +54,19 @@ Provider packages (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`) are 
 - **Releases:** Changesets
 - **CI:** GitHub Actions
 - **Peer deps:** `ai` >= 6.0.0, `zod` >= 3.25.76
+- **Sub-exports:** `ai-sdk-agents` (main), `ai-sdk-agents/test` (test helpers: `createMockModel`, `makeGenerateTextResult`, `makeStreamTextResult`, `makeToolCallStep`, `makeHandoffStep`, `setupMockAI`, `createRunContext`, `createGuardrailInput`, `createMockProcessor`)
 
 ---
 
 ## Workspace Structure
 
-This is a pnpm workspace monorepo with three packages:
+This is a pnpm workspace monorepo with 24 packages:
 
 ```
 pnpm-workspace.yaml
 ├── "."              # Root — the ai-sdk-agents library
 ├── "docs"           # Astro Starlight documentation site
-└── "examples/*"     # Runnable example projects
+└── "examples/*"     # 22 runnable example projects (01 through 22)
 ```
 
 ---
@@ -113,8 +114,8 @@ pnpm-workspace.yaml
 | `test`           | `vitest run`                                            | Run tests once                  |
 | `test:watch`     | `vitest`                                                | Run tests in watch mode         |
 | `test:coverage`  | `vitest run --coverage`                                 | Run tests with coverage report  |
-| `lint`           | `eslint src/`                                           | Lint source files               |
-| `lint:fix`       | `eslint src/ --fix`                                     | Lint and auto-fix               |
+| `lint`           | `eslint src/ --max-warnings 0`                          | Lint source files               |
+| `lint:fix`       | `eslint src/ --fix --max-warnings 0`                    | Lint and auto-fix               |
 | `format`         | `prettier --write "src/**/*.ts"`                        | Format all source files         |
 | `type-check`     | `tsc --noEmit`                                          | Type-check without emitting     |
 | `prepublishOnly` | `pnpm run build`                                        | Auto-build before publish       |
@@ -168,15 +169,32 @@ ai-sdk-agents/
 │   ├── tracing/
 │   │   └── tracing.ts            # Trace class, trace(), processors, span management
 │   └── test/
-│       └── index.ts              # Test helpers: createMockModel, makeGenerateTextResult, etc.
+│       └── index.ts              # Test helpers (exported via "ai-sdk-agents/test" sub-path)
 │
-├── examples/                     # Runnable example projects (workspace packages)
-│   ├── 01-hello-world/           # Simplest agent: name + model + instructions
-│   │   ├── src/index.ts          # Entry point
-│   │   ├── src/index.test.ts     # Example tests (mocked, no API key needed)
-│   │   ├── package.json          # deps: ai, ai-sdk-agents (workspace:*), ollama-ai-provider-v2
-│   │   └── README.md
-│   └── example-plans.md          # Plans for future examples
+├── examples/                     # 22 runnable example projects (workspace packages)
+│   ├── 01-hello-world/           # Minimal agent: name + model + instructions
+│   ├── 02-agent-with-tools/      # Agent with tools (weather, timezone)
+│   ├── 03-streaming/             # Real-time streaming with Runner.stream()
+│   ├── 04-structured-output/     # Zod output schemas
+│   ├── 05-dynamic-instructions/  # Context-driven dynamic instructions
+│   ├── 06-lifecycle-hooks/       # Agent hooks + run hooks
+│   ├── 07-agent-handoff/         # Handoff between agents
+│   ├── 08-handoff-with-filters/  # Message filtering on handoff
+│   ├── 09-agent-as-tool/         # Agent used as a tool via asTool()
+│   ├── 10-input-output-guardrails/ # Input & output guardrails
+│   ├── 11-tool-guardrails/       # Tool-level guardrails (guardedTool)
+│   ├── 12-llm-guardrail/         # LLM-as-judge guardrail
+│   ├── 13-keyword-guardrail/     # Built-in guardrail helpers
+│   ├── 14-parallel-agents/       # Concurrent agent runs (Promise.all)
+│   ├── 15-agent-routing/         # Triage with multiple language handoffs
+│   ├── 16-deterministic-flow/    # Sequential pipeline (research → QC → writer)
+│   ├── 17-tracing/               # consoleTraceProcessor & memoryTraceProcessor
+│   ├── 18-customer-service-bot/  # Multi-agent interactive customer service
+│   ├── 19-research-bot/          # Parallel research pipeline
+│   ├── 20-nextjs-chat/           # Next.js basic chat UI
+│   ├── 21-nextjs-multi-agent/    # Next.js multi-agent chat with tools
+│   ├── 22-nextjs-human-in-the-loop/ # Next.js tool approval flow
+│   └── example-plans.md          # Plans and implementation notes
 │
 ├── docs/                         # Astro Starlight documentation site (workspace package)
 │   ├── src/content/docs/
@@ -194,6 +212,12 @@ ai-sdk-agents/
 │   │       ├── context.mdx
 │   │       ├── tracing.mdx
 │   │       └── why.mdx
+│   ├── src/content/docs/api/     # Auto-generated API reference (starlight-typedoc)
+│   │       ├── classes/          # Agent, Runner, Trace, error classes
+│   │       ├── interfaces/       # AgentConfig, RunConfig, Guardrail, etc. (24+)
+│   │       ├── type-aliases/     # CallSettings, StreamEvent, HandoffTarget, etc.
+│   │       ├── variables/        # handoffFilters, ToolGuardrailBehaviorFactory
+│   │       └── functions/        # handoff, guardrail, trace, etc. (15+)
 │   └── package.json              # Astro + Starlight + TypeDoc + starlight-llms-txt
 │
 ├── scripts/                      # Shell scripts for workspace-wide commands
