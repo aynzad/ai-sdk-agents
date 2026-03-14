@@ -763,7 +763,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 2. agent-with-tools
+### 2. agent-with-tools -- DONE
 
 **Inspired by:** openai-agents-js `basic/` tools
 
@@ -797,7 +797,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 4. structured-output
+### 4. structured-output -- DONE
 
 **Inspired by:** openai-agents-js `basic/` structured-output
 
@@ -813,7 +813,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 5. dynamic-instructions
+### 5. dynamic-instructions -- DONE
 
 **Inspired by:** openai-agents-js `basic/` dynamic-system-prompt
 
@@ -830,7 +830,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 6. lifecycle-hooks
+### 6. lifecycle-hooks -- DONE
 
 **Inspired by:** openai-agents-js `basic/` lifecycle-hooks
 
@@ -846,7 +846,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 7. agent-handoff
+### 7. agent-handoff -- DONE
 
 **Inspired by:** openai-agents-js `handoffs/` basic
 
@@ -863,7 +863,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 8. handoff-with-filters
+### 8. handoff-with-filters -- DONE
 
 **Inspired by:** openai-agents-js `handoffs/` message-filter
 
@@ -882,7 +882,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 9. agent-as-tool
+### 9. agent-as-tool -- DONE
 
 **Inspired by:** openai-agents-js `agent-patterns/` agents-as-tools
 
@@ -898,7 +898,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 10. input-output-guardrails
+### 10. input-output-guardrails -- DONE
 
 **Inspired by:** openai-agents-js `agent-patterns/` guardrails
 
@@ -915,7 +915,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 11. tool-guardrails
+### 11. tool-guardrails -- DONE
 
 **Inspired by:** New example (not in openai-agents-js) -- unique to ai-sdk-agents
 
@@ -934,7 +934,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 12. llm-guardrail
+### 12. llm-guardrail -- DONE
 
 **Inspired by:** openai-agents-js `agent-patterns/` llm-as-judge
 
@@ -951,7 +951,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 13. keyword-guardrail
+### 13. keyword-guardrail -- DONE
 
 **Inspired by:** New example (not in openai-agents-js) -- showcases ai-sdk-agents built-in guardrail helpers
 
@@ -968,7 +968,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 14. parallel-agents
+### 14. parallel-agents -- DONE
 
 **Inspired by:** openai-agents-js `agent-patterns/` parallel
 
@@ -985,7 +985,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 15. agent-routing
+### 15. agent-routing -- DONE
 
 **Inspired by:** openai-agents-js `agent-patterns/` routing
 
@@ -1002,7 +1002,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 16. deterministic-flow
+### 16. deterministic-flow -- DONE
 
 **Inspired by:** openai-agents-js `agent-patterns/` deterministic
 
@@ -1019,7 +1019,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 17. tracing
+### 17. tracing -- DONE
 
 **Inspired by:** New example (not in openai-agents-js) -- unique to ai-sdk-agents tracing system
 
@@ -1038,7 +1038,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 18. customer-service-bot
+### 18. customer-service-bot -- DONE
 
 **Inspired by:** openai-agents-js `customer-service/`
 
@@ -1056,7 +1056,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
-### 19. research-bot
+### 19. research-bot -- DONE
 
 **Inspired by:** openai-agents-js `research-bot/`
 
@@ -1425,7 +1425,7 @@ packages:
 4. ~~**Refactor existing library tests** to use the new shared helpers~~ **DONE**
 5. ~~**Run existing tests** to verify nothing breaks (316 tests pass)~~ **DONE**
 6. ~~**Update `pnpm-workspace.yaml`** to include `examples/*`~~ **DONE**
-7. **Build console examples** (02-19) -- each as `examples/<##-name>/` with `src/index.ts`, `src/index.test.ts`, README, .env.example (**01-hello-world DONE, 02-agent-with-tools DONE, 03-streaming DONE**)
+7. ~~**Build console examples** (02-19) -- each as `examples/<##-name>/` with `src/index.ts`, `src/index.test.ts`, README, .env.example~~ **ALL DONE (01-19)**
 8. **Build Next.js examples** (20-22) -- each as `examples/<##-name>/` with Playwright E2E tests
 9. **Create `.github/workflows/ci.yml`** -- library lint, format, type-check, tests
 10. **Create `.github/workflows/ci-examples.yml`** -- auto-discover and test all examples
