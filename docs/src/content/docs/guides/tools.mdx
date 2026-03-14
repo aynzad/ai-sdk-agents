@@ -1,9 +1,9 @@
 ---
 title: Tools
-description: Give agents capabilities with function tools, agent-as-tool, and guarded tools.
+description: Give agents capabilities with function tools, client-side tools, agent-as-tool, and guarded tools.
 ---
 
-Tools extend what an agent can do. The library supports three kinds of tools: **function tools**, **agent-as-tool**, and **guarded tools**.
+Tools extend what an agent can do. The library supports four kinds of tools: **function tools**, **client-side tools** (human-in-the-loop), **agent-as-tool**, and **guarded tools**.
 
 ## Function Tools
 
@@ -34,6 +34,94 @@ const agent = new Agent({
 ```
 
 Tools are passed directly to AI SDK's `generateText` / `streamText`. The model chooses which tool to call based on the user's message.
+
+## Client-Side Tools (Human-in-the-Loop)
+
+Client-side tools have no `execute` function. When the model invokes one, the stream pauses and waits for the frontend to provide a result — enabling human approval flows, confirmations, or any UI-driven tool resolution.
+
+Define client-side tools in `clientTools` and use `Runner.streamUI()` to serve them:
+
+```ts
+import { tool } from "ai";
+import { Agent } from "@aynzad/ai-sdk-agents";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+
+const getRecord = tool({
+  description: "Look up a record by ID",
+  inputSchema: z.object({ id: z.string() }),
+  execute: async ({ id }) => ({ id, name: "Acme Corp", status: "active" }),
+});
+
+const updateRecord = tool({
+  description: "Update a record. Requires human approval.",
+  inputSchema: z.object({
+    id: z.string(),
+    field: z.string(),
+    value: z.string(),
+  }),
+  // No execute — resolved by the frontend
+});
+
+const agent = new Agent({
+  name: "Database Agent",
+  model: openai("gpt-4o"),
+  instructions: "Look up and update records. Updates require approval.",
+  tools: { getRecord },
+  clientTools: { updateRecord },
+});
+```
+
+In your Next.js API route, use `Runner.streamUI()` instead of `Runner.stream()`:
+
+```ts
+import { type UIMessage } from "ai";
+import { Runner } from "@aynzad/ai-sdk-agents";
+
+export async function POST(req: Request) {
+  const { messages } = (await req.json()) as { messages: UIMessage[] };
+  return Runner.streamUI(agent, messages);
+}
+```
+
+On the frontend, use `useChat` with `addToolOutput` to resolve client-side tool calls:
+
+```tsx
+import { useChat } from "@ai-sdk/react";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+
+const { messages, sendMessage, addToolOutput } = useChat({
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+});
+
+// When the model invokes updateRecord, render an approval UI and call:
+addToolOutput({
+  tool: "updateRecord",
+  toolCallId: callId,
+  output: JSON.stringify({ success: true, message: "Approved" }),
+});
+```
+
+### tools vs clientTools
+
+| Property | Execution | Use case |
+|----------|-----------|----------|
+| `tools` | Server-side (auto-executed) | Database queries, API calls, computations |
+| `clientTools` | Client-side (via `addToolOutput`) | Human approval, confirmations, UI input |
+
+Both are available to the model simultaneously — the model chooses which to call based on the conversation. `Runner.streamUI()` merges them into a single `streamText()` call.
+
+### What Runner.streamUI() supports
+
+`Runner.streamUI()` applies the agent's full configuration before calling `streamText()`:
+
+- Dynamic instructions resolution
+- Input guardrails
+- Model settings (temperature, maxOutputTokens, etc.)
+- Agent hooks (`onStart`, `onEnd`)
+- Tool guardrails on server-side tools
+
+It does **not** support handoffs or multi-turn agent loops — use `Runner.stream()` for those. See [Streaming](/ai-sdk-agents/guides/streaming/) for details.
 
 ## Agent as Tool
 

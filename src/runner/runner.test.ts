@@ -3241,3 +3241,267 @@ describe("Runner.stream (full streaming)", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Runner.streamUI
+// ---------------------------------------------------------------------------
+
+describe("Runner.streamUI", () => {
+  function makeStreamUIResult(overrides: Record<string, unknown> = {}) {
+    const base = makeStreamTextResult();
+    return {
+      ...base,
+      toUIMessageStreamResponse: vi.fn(
+        () => new Response("stream-body", { status: 200 }),
+      ),
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockStreamText.mockReturnValue(makeStreamUIResult());
+  });
+
+  it("should return a Response object", async () => {
+    const agent = createSimpleAgent();
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    const response = await Runner.streamUI(agent, messages);
+
+    expect(response).toBeInstanceOf(Response);
+    expect(response.status).toBe(200);
+  });
+
+  it("should call streamText with the agent's model and resolved instructions", async () => {
+    const agent = createSimpleAgent({ instructions: "Be helpful." });
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hello" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages);
+
+    expect(mockStreamText).toHaveBeenCalledOnce();
+    const call = mockStreamText.mock.calls[0][0] as StreamTextCall;
+    expect(call.model).toBe(mockModel);
+    expect(call.system).toBe("Be helpful.");
+  });
+
+  it("should resolve dynamic instructions", async () => {
+    const agent = createSimpleAgent({
+      instructions: () => "Dynamic instructions",
+    });
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages);
+
+    const call = mockStreamText.mock.calls[0][0] as StreamTextCall;
+    expect(call.system).toBe("Dynamic instructions");
+  });
+
+  it("should merge server tools and client tools", async () => {
+    const serverTool = {
+      description: "server tool",
+      parameters: z.object({ x: z.string() }),
+      execute: vi.fn(),
+    };
+    const clientTool = {
+      description: "client tool",
+      parameters: z.object({ y: z.string() }),
+    };
+
+    const agent = createSimpleAgent({
+      tools: { serverTool },
+      clientTools: { clientTool },
+    });
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages);
+
+    const call = mockStreamText.mock.calls[0][0] as StreamTextCall;
+    expect(call.tools).toBeDefined();
+    expect(call.tools!.serverTool).toBeDefined();
+    expect(call.tools!.clientTool).toBeDefined();
+  });
+
+  it("should pass only client tools when no server tools configured", async () => {
+    const clientTool = {
+      description: "client tool",
+      parameters: z.object({ y: z.string() }),
+    };
+
+    const agent = createSimpleAgent({ clientTools: { clientTool } });
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages);
+
+    const call = mockStreamText.mock.calls[0][0] as StreamTextCall;
+    expect(call.tools).toBeDefined();
+    expect(call.tools!.clientTool).toBeDefined();
+  });
+
+  it("should apply model settings", async () => {
+    const agent = createSimpleAgent({
+      modelSettings: { temperature: 0.5, maxOutputTokens: 100 },
+    });
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages);
+
+    const call = mockStreamText.mock.calls[0][0] as StreamTextCall;
+    expect(call.temperature).toBe(0.5);
+    expect(call.maxOutputTokens).toBe(100);
+  });
+
+  it("should fire onStart hook", async () => {
+    const onStart = vi.fn();
+    const agent = createSimpleAgent({ hooks: { onStart } });
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages);
+
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(onStart.mock.calls[0][0]).toMatchObject({
+      agent: "test-agent",
+      turn: 1,
+    });
+  });
+
+  it("should fire onEnd hook after text resolves", async () => {
+    const onEnd = vi.fn();
+    const agent = createSimpleAgent({ hooks: { onEnd } });
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages);
+
+    // onEnd fires asynchronously after the text promise resolves
+    await vi.waitFor(() => {
+      expect(onEnd).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("should throw GuardrailTripwiredError when input guardrail trips", async () => {
+    const tripGuardrail: Guardrail = {
+      name: "block-all",
+      // eslint-disable-next-line @typescript-eslint/require-await
+      execute: async () => ({
+        tripwired: true,
+        reason: "blocked",
+      }),
+    };
+
+    const agent = createSimpleAgent({
+      inputGuardrails: [tripGuardrail],
+    });
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await expect(Runner.streamUI(agent, messages)).rejects.toThrow(
+      GuardrailTripwiredError,
+    );
+    expect(mockStreamText).not.toHaveBeenCalled();
+  });
+
+  it("should call toUIMessageStreamResponse on the streamText result", async () => {
+    const mockResult = makeStreamUIResult();
+    mockStreamText.mockReturnValue(mockResult);
+
+    const agent = createSimpleAgent();
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages);
+
+    expect(mockResult.toUIMessageStreamResponse).toHaveBeenCalledOnce();
+  });
+
+  it("should pass abort signal when configured", async () => {
+    const controller = new AbortController();
+    const agent = createSimpleAgent();
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages, { signal: controller.signal });
+
+    const call = mockStreamText.mock.calls[0][0] as StreamTextCall;
+    expect(call.abortSignal).toBe(controller.signal);
+  });
+
+  it("should use model override from config", async () => {
+    const overrideModel = createMockModel();
+    const agent = createSimpleAgent();
+    const messages = [
+      {
+        role: "user" as const,
+        id: "m1",
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+    ];
+
+    await Runner.streamUI(agent, messages, { model: overrideModel });
+
+    const call = mockStreamText.mock.calls[0][0] as StreamTextCall;
+    expect(call.model).toBe(overrideModel);
+  });
+});

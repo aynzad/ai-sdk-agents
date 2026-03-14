@@ -187,6 +187,38 @@ for await (const event of streamResult.events) {
 const result = await streamResult.result;
 ```
 
+## Human-in-the-Loop (Client-Side Tools)
+
+Define tools without an `execute` function — the frontend resolves them via user interaction. Use `Runner.streamUI()` to serve them in a Next.js API route.
+
+```typescript
+import { tool } from "ai";
+import { Agent, Runner } from "ai-sdk-agents";
+import { z } from "zod";
+
+const updateRecord = tool({
+  description: "Update a record. Requires human approval.",
+  inputSchema: z.object({ id: z.string(), field: z.string(), value: z.string() }),
+  // No execute — resolved by the frontend
+});
+
+const agent = new Agent({
+  name: "DB Agent",
+  model,
+  instructions: "Look up and update records.",
+  tools: { getRecord },
+  clientTools: { updateRecord },
+});
+
+// In your Next.js API route:
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  return Runner.streamUI(agent, messages);
+}
+```
+
+On the frontend, use `useChat` with `addToolOutput` to approve or reject tool calls.
+
 ## Lifecycle Hooks
 
 Two levels of hooks for observability and control:
@@ -258,7 +290,7 @@ Use `addTraceProcessor()` for global processors, or pass them per-run via `RunCo
 | 19 | [Research Bot](./examples/19-research-bot/) | Parallel research pipeline |
 | 20 | [Next.js Chat](./examples/20-nextjs-chat/) | Next.js chat UI |
 | 21 | [Next.js Multi-Agent](./examples/21-nextjs-multi-agent/) | Next.js multi-agent chat |
-| 22 | [Next.js Human-in-the-Loop](./examples/22-nextjs-human-in-the-loop/) | Tool approval flow |
+| 22 | [Next.js Human-in-the-Loop](./examples/22-nextjs-human-in-the-loop/) | Client-side tools with Runner.streamUI() |
 
 Run any example:
 
@@ -274,7 +306,7 @@ pnpm examples:dev 7   # runs example 07
 | Export | Description |
 |--------|-------------|
 | `Agent` | Declarative agent definition with name, model, instructions, tools, handoffs, and guardrails. |
-| `Runner` | Orchestration engine. `Runner.run()` for completion, `Runner.stream()` for streaming. |
+| `Runner` | Orchestration engine. `Runner.run()` for completion, `Runner.stream()` for streaming, `Runner.streamUI()` for Next.js UI streaming with client-side tools. |
 | `Trace` | Trace context for grouping related runs and spans. |
 
 ### Functions — Handoffs

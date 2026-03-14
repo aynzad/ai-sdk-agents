@@ -1,5 +1,11 @@
-import { generateText, streamText, stepCountIs, Output } from "ai";
-import type { LanguageModel, ModelMessage, ToolSet } from "ai";
+import {
+  generateText,
+  streamText,
+  stepCountIs,
+  Output,
+  convertToModelMessages,
+} from "ai";
+import type { LanguageModel, ModelMessage, ToolSet, UIMessage } from "ai";
 
 import type {
   AgentInstance,
@@ -776,5 +782,102 @@ export class Runner {
       events: eventGenerator(),
       result: resultPromise,
     };
+  }
+
+  /**
+   * Single-turn UI streaming that returns a native AI SDK Response.
+   *
+   * Resolves the agent's instructions, merges server tools (`tools`) with
+   * client-side tools (`clientTools`), runs input guardrails, and delegates
+   * to `streamText().toUIMessageStreamResponse()`.
+   *
+   * The multi-turn loop for human-in-the-loop is driven by the client
+   * (`useChat` + `sendAutomaticallyWhen` + `addToolOutput`), which re-posts
+   * to the route after each tool output is provided.
+   *
+   * Does NOT support handoffs or multi-turn agent loops (use `Runner.stream()`
+   * for those). Supports: dynamic instructions, input guardrails, model
+   * settings, hooks, and merged server + client tools.
+   */
+  static async streamUI<TContext = unknown>(
+    agent: AgentInstance<TContext, unknown>,
+    messages: UIMessage[],
+    config?: RunConfig<TContext>,
+  ): Promise<Response> {
+    const model = resolveModel(agent, config);
+
+    const ctx: RunContext<TContext> = {
+      context: config?.context ?? ({} as TContext),
+      agent: agent.name,
+      traceId: "",
+      turn: 1,
+      signal: config?.signal,
+    };
+
+    try {
+      await agent.config.hooks?.onStart?.(ctx);
+    } catch {
+      /* hooks never break the run */
+    }
+
+    if (agent.config.inputGuardrails?.length) {
+      const modelMessages = await convertToModelMessages(messages);
+      const guardResult = await runGuardrails(
+        agent.config.inputGuardrails,
+        ctx,
+        { messages: modelMessages, agentName: agent.name },
+      );
+      if (guardResult.tripwired) {
+        throw new GuardrailTripwiredError(
+          guardResult.guardrailName ?? "unknown",
+          guardResult.reason,
+          guardResult.metadata,
+        );
+      }
+    }
+
+    const system = await (
+      agent as unknown as {
+        resolveInstructions(c: RunContext<TContext>): Promise<string>;
+      }
+    ).resolveInstructions(ctx);
+
+    const agentTools: ToolSet = {};
+
+    for (const [tName, t] of Object.entries(agent.config.tools ?? {})) {
+      agentTools[tName] = isGuardedTool(t)
+        ? wrapToolWithGuardrails(tName, t, ctx)
+        : t;
+    }
+
+    for (const [tName, t] of Object.entries(agent.config.clientTools ?? {})) {
+      agentTools[tName] = t;
+    }
+
+    const result = streamText({
+      model,
+      system,
+      messages: await convertToModelMessages(messages),
+      tools: Object.keys(agentTools).length > 0 ? agentTools : undefined,
+      stopWhen: stepCountIs(agent.config.maxToolRoundtrips ?? 10),
+      ...(agent.config.modelSettings ?? {}),
+      ...(ctx.signal ? { abortSignal: ctx.signal } : {}),
+    });
+
+    const response = result.toUIMessageStreamResponse();
+
+    Promise.resolve(result.text)
+      .then(async (text) => {
+        try {
+          await agent.config.hooks?.onEnd?.(ctx, text);
+        } catch {
+          /* hooks never break the run */
+        }
+      })
+      .catch(() => {
+        /* swallow — error surfaces via the stream */
+      });
+
+    return response;
   }
 }

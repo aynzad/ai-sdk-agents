@@ -1,34 +1,18 @@
-import {
-  streamText,
-  type UIMessage,
-  convertToModelMessages,
-  stepCountIs,
-} from "ai";
-import { dbAgent, getRecord, updateRecord } from "@/lib/agent";
+import { type UIMessage } from "ai";
+import { Runner } from "ai-sdk-agents";
+import { dbAgent } from "@/lib/agent";
 
 export const maxDuration = 30;
 
 /**
- * Uses the Agent definition from ai-sdk-agents for model and instructions,
- * but calls streamText directly to support client-side tools (updateRecord)
- * that require human approval via addToolOutput on the frontend.
+ * Uses Runner.streamUI() to handle both server-side tools (getRecord) and
+ * client-side tools (updateRecord) from the agent's configuration.
  *
- * Runner.stream() would auto-execute all tools, but we need updateRecord
- * to pause and wait for the user's approve/reject decision.
+ * Client-side tools (defined in agent.clientTools) have no `execute` function —
+ * the stream pauses when they're invoked and waits for the frontend to provide
+ * a tool output via addToolOutput.
  */
 export async function POST(req: Request) {
   const { messages } = (await req.json()) as { messages: UIMessage[] };
-
-  const result = streamText({
-    model: dbAgent.config.model,
-    system: dbAgent.config.instructions as string,
-    messages: await convertToModelMessages(messages),
-    stopWhen: stepCountIs(5),
-    tools: {
-      getRecord,
-      updateRecord,
-    },
-  });
-
-  return result.toUIMessageStreamResponse();
+  return Runner.streamUI(dbAgent, messages);
 }

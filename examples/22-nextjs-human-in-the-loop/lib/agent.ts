@@ -39,6 +39,7 @@ export const dbAgent = new Agent({
     "to make changes — it requires human approval before executing.",
   model: google("gemini-2.5-flash"),
   tools: { getRecord },
+  clientTools: { updateRecord },
   hooks: {
     onToolCall: (_ctx, toolName, args) => {
       console.log(`[HITL] Agent requested tool: ${toolName}`, args);

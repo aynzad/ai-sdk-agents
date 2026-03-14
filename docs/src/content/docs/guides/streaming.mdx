@@ -186,3 +186,36 @@ try {
   // Same error as the event
 }
 ```
+
+## UI Streaming with Runner.streamUI()
+
+`Runner.streamUI()` is designed for Next.js API routes that serve the AI SDK `useChat` hook. It returns a native AI SDK `Response` via `toUIMessageStreamResponse()`, with full support for client-side tools (human-in-the-loop).
+
+```ts
+import { type UIMessage } from "ai";
+import { Runner } from "@aynzad/ai-sdk-agents";
+
+export async function POST(req: Request) {
+  const { messages } = (await req.json()) as { messages: UIMessage[] };
+  return Runner.streamUI(agent, messages);
+}
+```
+
+### How it differs from Runner.stream()
+
+| | `Runner.stream()` | `Runner.streamUI()` |
+|--|-------------------|---------------------|
+| **Returns** | `StreamResult` (custom events) | `Response` (AI SDK data stream) |
+| **Input** | `string \| ModelMessage[]` | `UIMessage[]` |
+| **Client tools** | Not supported | Supported via `clientTools` |
+| **Multi-turn loop** | Yes (handoffs, max turns) | Single-turn (client drives the loop) |
+| **Handoffs** | Yes | No |
+| **Guardrails** | Input + output | Input only |
+| **Use case** | Console apps, custom event consumers | Next.js routes with `useChat` |
+
+### When to use which
+
+- **`Runner.stream()`** — when you need multi-agent handoffs, custom event processing, or are building a console/non-web application.
+- **`Runner.streamUI()`** — when you need client-side tools (human-in-the-loop) in a Next.js app, or want the simplest possible integration with `useChat`.
+
+See [Tools — Client-Side Tools](/ai-sdk-agents/guides/tools/#client-side-tools-human-in-the-loop) for the full pattern.

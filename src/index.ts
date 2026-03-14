@@ -32,6 +32,8 @@ export type {
   LanguageModelUsage,
 } from "./types";
 
+export type { UIMessage } from "ai";
+
 export {
   GuardrailTripwiredError,
   MaxTurnsExceededError,

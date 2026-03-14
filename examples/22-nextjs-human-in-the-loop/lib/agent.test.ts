@@ -36,6 +36,21 @@ describe("Human-in-the-loop Agent", () => {
     expect(agent.config.tools).toHaveProperty("getRecord");
   });
 
+  it("should store clientTools separately from server tools", () => {
+    const agent = new Agent({
+      name: "Database Agent",
+      model: createMockModel(),
+      instructions: "You are a database assistant.",
+      tools: { getRecord: {} as never },
+      clientTools: { updateRecord: {} as never },
+    });
+
+    expect(agent.config.tools).toHaveProperty("getRecord");
+    expect(agent.config.tools).not.toHaveProperty("updateRecord");
+    expect(agent.config.clientTools).toHaveProperty("updateRecord");
+    expect(agent.config.clientTools).not.toHaveProperty("getRecord");
+  });
+
   it("should respond to a record lookup via Runner.run()", async () => {
     mockGenerateText.mockResolvedValue(
       makeGenerateTextResult({

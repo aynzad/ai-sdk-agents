@@ -68,6 +68,7 @@ export interface AgentConfig<TContext = unknown, TOutput = string> {
     | ((ctx: RunContext<TContext>) => string | Promise<string>);
   model: LanguageModel;
   tools?: ToolSet;
+  clientTools?: ToolSet;
   handoffs?: HandoffTarget<TContext>[];
   inputGuardrails?: Guardrail<TContext>[];
   outputGuardrails?: Guardrail<TContext>[];
