@@ -5,9 +5,11 @@ on:
     branches: [main]
     paths:
       - "docs/**"
+      - ".github/workflows/deploy-docs.yml"
   pull_request:
     paths:
       - "docs/**"
+      - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
 
 # Allow this job to clone the repo and create a page deployment
@@ -38,7 +40,7 @@ jobs:
           # with:
           # path: . # The root location of your Astro project inside the repository. (optional)
           # node-version: 20 # The specific version of Node that should be used to build your site. Defaults to 20. (optional)
-          package-manager: pnpm@latest # The Node package manager that should be used to install dependencies and build your site. Automatically detected based on your lockfile. (optional)
+          package-manager: pnpm@10.30.3 # The Node package manager that should be used to install dependencies and build your site. Automatically detected based on your lockfile. (optional)
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
