@@ -17,9 +17,9 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
-          run_install: true
-      - name: Build library
-        run: pnpm build
+      - run: pnpm install
+      - name: Build library and install examples
+        run: pnpm examples:install
       - name: Format check
         run: pnpm examples:format
 
@@ -34,9 +34,9 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
-          run_install: true
-      - name: Build library
-        run: pnpm build
+      - run: pnpm install
+      - name: Build library and install examples
+        run: pnpm examples:install
       - name: Lint
         run: pnpm examples:lint
 
@@ -51,9 +51,9 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
-          run_install: true
-      - name: Build library
-        run: pnpm build
+      - run: pnpm install
+      - name: Build library and install examples
+        run: pnpm examples:install
       - name: Type check
         run: pnpm examples:type-check
 
@@ -68,8 +68,11 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
-          run_install: true
-      - name: Build library
-        run: pnpm build
+      - run: pnpm install
+      - name: Build library and install examples
+        run: pnpm examples:install
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: examples/20-nextjs-chat
       - name: Test
         run: pnpm examples:test

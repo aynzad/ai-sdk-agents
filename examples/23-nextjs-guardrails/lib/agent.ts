@@ -81,10 +81,17 @@ const noPiiInOutput = defineToolOutputGuardrail({
   },
 });
 
-const MOCK_ACCOUNTS: Record<string, { name: string; email: string; plan: string }> = {
+const MOCK_ACCOUNTS: Record<
+  string,
+  { name: string; email: string; plan: string }
+> = {
   alice: { name: "Alice Johnson", email: "alice@example.com", plan: "Premium" },
   bob: { name: "Bob Smith", email: "bob@example.com", plan: "Free" },
-  charlie: { name: "Charlie Lee", email: "charlie@example.com", plan: "Business" },
+  charlie: {
+    name: "Charlie Lee",
+    email: "charlie@example.com",
+    plan: "Business",
+  },
 };
 
 const lookupAccount = guardedTool({
@@ -99,7 +106,10 @@ const lookupAccount = guardedTool({
     return Promise.resolve(
       key
         ? { found: true as const, account: MOCK_ACCOUNTS[key] }
-        : { found: false as const, message: `No account found for "${query}".` },
+        : {
+            found: false as const,
+            message: `No account found for "${query}".`,
+          },
     );
   },
   inputGuardrails: [noSqlInjection],

@@ -292,6 +292,12 @@ Use `addTraceProcessor()` for global processors, or pass them per-run via `RunCo
 | 21 | [Next.js Multi-Agent](./examples/21-nextjs-multi-agent/) | Next.js multi-agent chat |
 | 22 | [Next.js Human-in-the-Loop](./examples/22-nextjs-human-in-the-loop/) | Client-side tools with Runner.streamUI() |
 
+Setup examples (builds the library and installs dependencies):
+
+```bash
+pnpm examples:install
+```
+
 Run any example:
 
 ```bash

@@ -50,6 +50,7 @@
     "changeset": "changeset",
     "release": "changeset publish",
     "build:ci": "pnpm run build",
+    "examples:install": "bash scripts/examples-install.sh",
     "examples:dev": "bash scripts/examples-dev.sh",
     "examples:test": "bash scripts/examples-test.sh",
     "examples:lint": "bash scripts/examples-lint.sh",
@@ -59,7 +60,8 @@
     "docs:build": "pnpm --filter docs build",
     "docs:scripts:check": "pnpm --filter docs astro check",
     "check-all": "pnpm run format && pnpm run type-check && pnpm run lint && pnpm run docs:scripts:check && pnpm run examples:format && pnpm run examples:lint && pnpm run examples:type-check",
-    "test-all": "pnpm run test && pnpm run examples:test"
+    "test-all": "pnpm run test && pnpm run examples:test",
+    "prepare": "husky"
   },
   "keywords": [
     "ai",
@@ -104,6 +106,7 @@
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0",
     "globals": "^17.4.0",
+    "husky": "^9.1.7",
     "prettier": "^3.4.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.57.0",

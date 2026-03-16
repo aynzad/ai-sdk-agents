@@ -17,7 +17,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
-          run_install: true
+      - run: pnpm install
       - name: Lint
         run: pnpm lint
       - name: Format check
@@ -34,7 +34,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
-          run_install: true
+      - run: pnpm install
       - name: Type check
         run: pnpm type-check
 
@@ -52,7 +52,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
-          run_install: true
+      - run: pnpm install
       - name: Build library
         run: pnpm build
       - name: Run tests
@@ -72,7 +72,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
-          run_install: true
+      - run: pnpm install
       - name: Build library
         run: pnpm build
       - name: Build types

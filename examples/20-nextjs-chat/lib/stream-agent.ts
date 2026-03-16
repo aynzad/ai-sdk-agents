@@ -29,21 +29,25 @@ export function streamAgentResponse({
       let partCounter = 0;
 
       for await (const event of streamResult.events) {
-        handleEvent(event, { write }, {
-          getTextPartId: () => {
-            if (!textPartId) {
-              textPartId = `text-${partCounter++}`;
-            }
-            return textPartId;
+        handleEvent(
+          event,
+          { write },
+          {
+            getTextPartId: () => {
+              if (!textPartId) {
+                textPartId = `text-${partCounter++}`;
+              }
+              return textPartId;
+            },
+            isTextStarted: () => textStarted,
+            setTextStarted: (v: boolean) => {
+              textStarted = v;
+            },
+            resetTextPart: () => {
+              textPartId = "";
+            },
           },
-          isTextStarted: () => textStarted,
-          setTextStarted: (v: boolean) => {
-            textStarted = v;
-          },
-          resetTextPart: () => {
-            textPartId = "";
-          },
-        });
+        );
       }
     },
   });
