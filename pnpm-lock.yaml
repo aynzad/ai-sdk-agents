@@ -1244,9 +1244,6 @@ importers:
       typescript-eslint:
         specifier: ^8.57.0
         version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@22.19.15)(lightningcss@1.32.0)
 
   examples/21-nextjs-multi-agent:
     dependencies:
@@ -1326,9 +1323,6 @@ importers:
       typescript-eslint:
         specifier: ^8.57.0
         version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@22.19.15)(lightningcss@1.32.0)
 
   examples/22-nextjs-human-in-the-loop:
     dependencies:
@@ -1408,9 +1402,6 @@ importers:
       typescript-eslint:
         specifier: ^8.57.0
         version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@22.19.15)(lightningcss@1.32.0)
 
   examples/23-nextjs-guardrails:
     dependencies:
@@ -1490,9 +1481,6 @@ importers:
       typescript-eslint:
         specifier: ^8.57.0
         version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@22.19.15)(lightningcss@1.32.0)
 
 packages:
 
