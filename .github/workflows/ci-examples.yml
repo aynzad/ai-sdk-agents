@@ -18,8 +18,8 @@ jobs:
         with:
           version: 10.30.3
       - run: pnpm install
-      - name: Build library
-        run: pnpm build
+      - name: Build library and install examples
+        run: pnpm examples:install
       - name: Format check
         run: pnpm examples:format
 
@@ -35,8 +35,8 @@ jobs:
         with:
           version: 10.30.3
       - run: pnpm install
-      - name: Build library
-        run: pnpm build
+      - name: Build library and install examples
+        run: pnpm examples:install
       - name: Lint
         run: pnpm examples:lint
 
@@ -52,8 +52,8 @@ jobs:
         with:
           version: 10.30.3
       - run: pnpm install
-      - name: Build library
-        run: pnpm build
+      - name: Build library and install examples
+        run: pnpm examples:install
       - name: Type check
         run: pnpm examples:type-check
 
@@ -69,7 +69,9 @@ jobs:
         with:
           version: 10.30.3
       - run: pnpm install
-      - name: Build library
-        run: pnpm build
+      - name: Build library and install examples
+        run: pnpm examples:install
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
       - name: Test
         run: pnpm examples:test

@@ -1,0 +1,1 @@
+pnpm run check-all && pnpm run test-all
