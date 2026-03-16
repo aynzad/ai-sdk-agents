@@ -16,7 +16,9 @@ The missing middle between raw AI SDK and full agent frameworks.
 pnpm add ai-sdk-agents ai zod
 ```
 
-> **[Full Documentation](https://github.com/aynzad/ai-sdk-agents#readme)** · **[Examples](./examples/)** · **[API Reference](./docs/)**
+> **[📚 Full Documentation](https://aynzad.github.io/ai-sdk-agents/)** 
+
+> **[🤖 Examples](#examples)**
 
 ## Why?
 
@@ -52,217 +54,6 @@ const result = await Runner.run(agent, "What is the weather in Berlin?");
 console.log(result.output);
 ```
 
-## Multi-Agent Handoffs
-
-Handoffs transfer full conversation control from one agent to another — the receiving agent gets the message history and takes over completely.
-
-```typescript
-import { Agent, Runner, handoff } from "ai-sdk-agents";
-
-const spanishAgent = new Agent({
-  name: "Spanish Agent",
-  instructions: "You always respond in Spanish.",
-  model,
-});
-
-const triageAgent = new Agent({
-  name: "Triage Agent",
-  instructions:
-    "If the user writes in Spanish, hand off to the Spanish Agent. Otherwise respond in English.",
-  model,
-  handoffs: [handoff(spanishAgent)],
-});
-
-const result = await Runner.run(triageAgent, "Hola, necesito ayuda");
-// result.agent → "Spanish Agent" (handoff occurred)
-```
-
-Use `handoffFilters` to control which messages the receiving agent sees:
-
-```typescript
-import { handoff, handoffFilters } from "ai-sdk-agents";
-
-handoff(agent, {
-  inputFilter: handoffFilters.compose(
-    handoffFilters.removeToolMessages,
-    handoffFilters.keepLast(5),
-  ),
-});
-```
-
-## Guardrails
-
-Guardrails validate inputs and outputs with tripwire-based halting. When a guardrail trips, execution stops immediately with a `GuardrailTripwiredError`.
-
-```typescript
-import { Agent, guardrail, GuardrailTripwiredError } from "ai-sdk-agents";
-
-const noInjection = guardrail({
-  name: "no-injection",
-  execute: (_ctx, input) => {
-    const text = input.messages.map((m) =>
-      typeof m.content === "string" ? m.content : ""
-    ).join(" ");
-    return {
-      tripwired: text.toLowerCase().includes("ignore all previous"),
-      reason: "Potential prompt injection detected",
-    };
-  },
-});
-
-const agent = new Agent({
-  name: "Guarded Agent",
-  model,
-  instructions: "You are a helpful assistant.",
-  inputGuardrails: [noInjection],
-  outputGuardrails: [/* output guardrails here */],
-});
-```
-
-Built-in shortcuts: `llmGuardrail()`, `keywordGuardrail()`, `maxLengthGuardrail()`, `regexGuardrail()`.
-
-Tool-level guardrails are also available via `guardedTool()`, `defineToolInputGuardrail()`, and `defineToolOutputGuardrail()`.
-
-## Agent-as-a-Tool
-
-Use one agent as a tool inside another. The sub-agent runs to completion and returns its output as a tool result.
-
-```typescript
-const translator = new Agent({
-  name: "Translator",
-  instructions: "Translate the given text to French.",
-  model,
-});
-
-const orchestrator = new Agent({
-  name: "Orchestrator",
-  instructions: "Use the translate tool to perform translations.",
-  model,
-  tools: {
-    translate: translator.asTool({
-      toolName: "translate",
-      toolDescription: "Translate text to French",
-    }),
-  },
-});
-```
-
-## Context & Dependency Injection
-
-Pass typed context to agents and access it in dynamic instructions, tools, guardrails, and hooks.
-
-```typescript
-interface UserPrefs {
-  language: string;
-  expertiseLevel: "beginner" | "intermediate" | "expert";
-}
-
-const agent = new Agent<UserPrefs>({
-  name: "Adaptive Assistant",
-  model,
-  instructions: (ctx) => {
-    const { language, expertiseLevel } = ctx.context;
-    return `Respond in ${language}. User level: ${expertiseLevel}.`;
-  },
-});
-
-const result = await Runner.run(agent, "Explain REST APIs", {
-  context: { language: "English", expertiseLevel: "beginner" },
-});
-```
-
-## Streaming
-
-Stream responses in real-time with typed events for text deltas, tool calls, agent transitions, and completion.
-
-```typescript
-const streamResult = Runner.stream(agent, "Explain what makes the ocean blue.");
-
-for await (const event of streamResult.events) {
-  if (event.type === "text_delta") {
-    process.stdout.write(event.delta);
-  }
-}
-
-const result = await streamResult.result;
-```
-
-## Human-in-the-Loop (Client-Side Tools)
-
-Define tools without an `execute` function — the frontend resolves them via user interaction. Use `Runner.streamUI()` to serve them in a Next.js API route.
-
-```typescript
-import { tool } from "ai";
-import { Agent, Runner } from "ai-sdk-agents";
-import { z } from "zod";
-
-const updateRecord = tool({
-  description: "Update a record. Requires human approval.",
-  inputSchema: z.object({ id: z.string(), field: z.string(), value: z.string() }),
-  // No execute — resolved by the frontend
-});
-
-const agent = new Agent({
-  name: "DB Agent",
-  model,
-  instructions: "Look up and update records.",
-  tools: { getRecord },
-  clientTools: { updateRecord },
-});
-
-// In your Next.js API route:
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-  return Runner.streamUI(agent, messages);
-}
-```
-
-On the frontend, use `useChat` with `addToolOutput` to approve or reject tool calls.
-
-## Lifecycle Hooks
-
-Two levels of hooks for observability and control:
-
-- **Agent hooks** (`hooks` on `Agent`) — `onStart`, `onEnd`, `onToolCall`, `onToolResult`
-- **Run hooks** (`hooks` on `RunConfig`) — `onRunStart`, `onRunEnd`, `onAgentStart`, `onAgentEnd`
-
-```typescript
-const agent = new Agent({
-  name: "Agent",
-  model,
-  instructions: "...",
-  hooks: {
-    onStart: (ctx) => console.log(`Agent started, turn ${ctx.turn}`),
-    onToolCall: (ctx, toolName, args) => console.log(`Tool: ${toolName}`),
-  },
-});
-
-await Runner.run(agent, "Hello", {
-  hooks: {
-    onRunStart: (ctx) => console.log("Run started"),
-    onRunEnd: (_ctx, result) => console.log(`Done: ${result.output}`),
-  },
-});
-```
-
-## Tracing
-
-Every run automatically captures traces with spans for agents, LLM calls, tool executions, guardrails, and handoffs.
-
-```typescript
-import { Runner, consoleTraceProcessor, memoryTraceProcessor } from "ai-sdk-agents";
-
-const memory = memoryTraceProcessor();
-
-const result = await Runner.run(agent, "What's the weather?", {
-  tracing: { processors: [consoleTraceProcessor(), memory] },
-});
-
-const traces = memory.getTraces();
-```
-
-Use `addTraceProcessor()` for global processors, or pass them per-run via `RunConfig.tracing`.
-
 ## Examples
 
 22 runnable examples covering every feature:
@@ -292,79 +83,78 @@ Use `addTraceProcessor()` for global processors, or pass them per-run via `RunCo
 | 21 | [Next.js Multi-Agent](./examples/21-nextjs-multi-agent/) | Next.js multi-agent chat |
 | 22 | [Next.js Human-in-the-Loop](./examples/22-nextjs-human-in-the-loop/) | Client-side tools with Runner.streamUI() |
 
-Setup examples (builds the library and installs dependencies):
+## Local Setup
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [pnpm](https://pnpm.io/) (v10+)
+
+### Installation
+
+```bash
+pnpm add ai-sdk-agents ai zod
+```
+
+### Development
+
+Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/aynzad/ai-sdk-agents.git
+cd ai-sdk-agents
+pnpm install
+```
+
+Build the library:
+
+```bash
+pnpm build
+```
+
+### Running Examples
+
+Install all example dependencies (builds the library first):
 
 ```bash
 pnpm examples:install
 ```
 
-Run any example:
+Run any example by number:
 
 ```bash
 pnpm examples:dev 1   # runs example 01
 pnpm examples:dev 7   # runs example 07
 ```
 
-## API Reference
+### Testing
 
-### Classes
+Run the library tests:
 
-| Export | Description |
-|--------|-------------|
-| `Agent` | Declarative agent definition with name, model, instructions, tools, handoffs, and guardrails. |
-| `Runner` | Orchestration engine. `Runner.run()` for completion, `Runner.stream()` for streaming, `Runner.streamUI()` for Next.js UI streaming with client-side tools. |
-| `Trace` | Trace context for grouping related runs and spans. |
+```bash
+pnpm test
+```
 
-### Functions — Handoffs
+Run example tests:
 
-| Export | Description |
-|--------|-------------|
-| `handoff(agent, options?)` | Create a configured handoff with custom tool name, description, callbacks, and input filters. |
-| `handoffFilters` | Built-in message filters: `removeToolMessages`, `keepLast(n)`, `compose(…)`. |
+```bash
+pnpm examples:test
+```
 
-### Functions — Guardrails
+Run all tests together:
 
-| Export | Description |
-|--------|-------------|
-| `guardrail({ name, execute })` | Create a custom input/output guardrail. |
-| `llmGuardrail(config)` | LLM-as-judge guardrail that uses a model to evaluate inputs/outputs. |
-| `keywordGuardrail(keywords)` | Trip on keyword matches. |
-| `maxLengthGuardrail(max)` | Trip when content exceeds length. |
-| `regexGuardrail(pattern)` | Trip on regex matches. |
+```bash
+pnpm test-all
+```
 
-### Functions — Tool Guardrails
+### Code Quality
 
-| Export | Description |
-|--------|-------------|
-| `guardedTool(tool, guardrails)` | Wrap a tool with input/output guardrails. |
-| `defineToolInputGuardrail(config)` | Define a tool input guardrail. |
-| `defineToolOutputGuardrail(config)` | Define a tool output guardrail. |
-| `ToolGuardrailBehaviorFactory` | Factory for built-in behaviors (`block`, `allow`, `transform`). |
-| `isGuardedTool(tool)` | Type guard to check if a tool has guardrails. |
-
-### Functions — Tracing
-
-| Export | Description |
-|--------|-------------|
-| `trace(name, fn, config?)` | Create a trace context for grouping related runs. |
-| `addTraceProcessor(processor)` | Register a global trace processor. |
-| `removeTraceProcessor(processor)` | Remove a global trace processor. |
-| `clearTraceProcessors()` | Remove all global trace processors. |
-| `consoleTraceProcessor()` | Built-in processor that logs spans to console. |
-| `memoryTraceProcessor()` | Built-in processor that collects spans in memory. |
-
-### Error Classes
-
-| Export | Description |
-|--------|-------------|
-| `GuardrailTripwiredError` | Thrown when an input/output guardrail trips. |
-| `ToolGuardrailTripwiredError` | Thrown when a tool guardrail trips. |
-| `MaxTurnsExceededError` | Thrown when the runner exceeds the maximum turn limit. |
-| `HandoffError` | Thrown on handoff failures. |
-
-### Test Utilities
-
-Import from `ai-sdk-agents/test` for mocked models and result builders — no API keys needed in tests.
+```bash
+pnpm lint          # lint source
+pnpm format        # format source
+pnpm type-check    # type-check source
+pnpm check-all     # run all checks (format, lint, type-check, examples)
+```
 
 ## License
 
