@@ -72,6 +72,6 @@ jobs:
       - name: Build library and install examples
         run: pnpm examples:install
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
       - name: Test
         run: pnpm examples:test
