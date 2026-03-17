@@ -25,7 +25,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-Open [http://localhost:3021](http://localhost:3021) in your browser.
+Open [http://localhost:3022](http://localhost:3022) in your browser.
 
 ## Test
 

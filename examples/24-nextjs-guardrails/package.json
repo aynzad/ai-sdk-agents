@@ -1,12 +1,12 @@
 {
-  "name": "22-nextjs-human-in-the-loop",
+  "name": "24-nextjs-guardrails",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3022",
+    "dev": "next dev --turbopack --port 3024",
     "build": "next build",
-    "start": "next start --port 3022",
+    "start": "next start --port 3024",
     "test": "playwright test",
     "lint": "eslint app/ lib/ --max-warnings 0",
     "format": "prettier --write \"app/**/*.{ts,tsx}\" \"lib/**/*.ts\" \"e2e/**/*.ts\"",

@@ -6,7 +6,7 @@ const SSE_HEADERS = {
   "x-vercel-ai-ui-message-stream": "v1",
 };
 
-test.describe("21-nextjs-multi-agent — Agent handoffs via Runner.stream()", () => {
+test.describe("22-nextjs-multi-agent — Agent handoffs via Runner.stream()", () => {
   test("shows welcome state with suggestion chips", async ({ page }) => {
     await page.route("**/api/chat", async (route) => {
       await route.fulfill({

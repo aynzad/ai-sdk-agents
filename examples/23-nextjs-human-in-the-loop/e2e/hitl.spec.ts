@@ -6,7 +6,7 @@ const SSE_HEADERS = {
   "x-vercel-ai-ui-message-stream": "v1",
 };
 
-test.describe("22-nextjs-human-in-the-loop — Agent with tool approval", () => {
+test.describe("23-nextjs-human-in-the-loop — Agent with tool approval", () => {
   test("shows empty state with suggestion chips", async ({ page }) => {
     await page.route("**/api/chat", async (route) => {
       await route.fulfill({

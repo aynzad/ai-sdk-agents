@@ -6,7 +6,7 @@ const SSE_HEADERS = {
   "x-vercel-ai-ui-message-stream": "v1",
 };
 
-test.describe("23-nextjs-guardrails — Agent with input/output/tool guardrails", () => {
+test.describe("24-nextjs-guardrails — Agent with input/output/tool guardrails", () => {
   test("renders empty state with guardrail badges and suggestion chips", async ({
     page,
   }) => {

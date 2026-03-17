@@ -1,12 +1,12 @@
 {
-  "name": "21-nextjs-multi-agent",
+  "name": "22-nextjs-multi-agent",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3021",
+    "dev": "next dev --port 3022",
     "build": "next build",
-    "start": "next start --port 3021",
+    "start": "next start --port 3022",
     "test": "playwright test",
     "lint": "eslint app/ lib/ --max-warnings 0",
     "format": "prettier --write \"app/**/*.{ts,tsx}\" \"lib/**/*.ts\" \"e2e/**/*.ts\"",

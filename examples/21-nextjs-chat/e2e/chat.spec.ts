@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures/polly.fixture";
 import { buildChatSSE } from "./fixtures/mock-stream";
 
-test.describe("20-nextjs-chat — Agent + Runner.stream()", () => {
+test.describe("21-nextjs-chat — Agent + Runner.stream()", () => {
   test.beforeEach(async ({ page }) => {
     await page.route("**/api/chat", async (route) => {
       await route.fulfill({
