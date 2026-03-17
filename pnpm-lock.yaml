@@ -1509,6 +1509,9 @@ importers:
       eslint:
         specifier: ^9.0.0
         version: 9.39.4(jiti@2.6.1)
+      eslint-config-next:
+        specifier: ^16.0.0
+        version: 16.1.6(@typescript-eslint/parser@8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
       eslint-config-prettier:
         specifier: ^9.0.0
         version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
