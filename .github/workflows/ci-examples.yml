@@ -73,6 +73,6 @@ jobs:
         run: pnpm examples:install
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-        working-directory: examples/20-nextjs-chat
+        working-directory: examples/21-nextjs-chat
       - name: Test
         run: pnpm examples:test

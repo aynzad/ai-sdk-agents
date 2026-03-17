@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack --port 3024",
+    "dev": "next dev --port 3024",
     "build": "next build",
     "start": "next start --port 3024",
     "test": "playwright test",
@@ -32,6 +32,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
+    "eslint-config-next": "^16.0.0",
     "eslint-config-prettier": "^9.0.0",
     "globals": "^17.4.0",
     "polly-adapter-playwright": "^2.4.0",

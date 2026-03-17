@@ -150,6 +150,72 @@ const contentPolicy = llmGuardrail({
 
 If the LLM call fails (network error, etc.), the guardrail **trips** — safety-first design.
 
+## Guardrail Presets
+
+The library ships with model-agnostic guardrail presets for common safety checks. LLM-based presets work with **any AI SDK model** (Gemini, Claude, GPT, etc.). Pattern-based presets use regex and need no model at all.
+
+### LLM-Based Presets
+
+These presets take a `model` parameter and use it to classify content:
+
+```ts
+import {
+  jailbreakGuardrail,
+  moderationGuardrail,
+  nsfwGuardrail,
+  promptInjectionGuardrail,
+  topicGuardrail,
+} from "@aynzad/ai-sdk-agents";
+import { google } from "@ai-sdk/google";
+
+const model = google("gemini-2.5-flash");
+
+const agent = new Agent({
+  name: "Safe",
+  model: google("gemini-2.5-flash"),
+  instructions: "You are a helpful assistant.",
+  inputGuardrails: [
+    jailbreakGuardrail({ model }),
+    moderationGuardrail({ model, categories: ["hate", "violence"] }),
+    topicGuardrail({ model, allowedTopics: "Customer support for Acme Corp" }),
+  ],
+});
+```
+
+If the LLM call fails (network error, etc.), the guardrail **trips** — safety-first design.
+
+### Pattern-Based Presets
+
+These presets use regex patterns and require no model:
+
+```ts
+import { piiGuardrail, secretKeyGuardrail, urlGuardrail } from "@aynzad/ai-sdk-agents";
+
+const agent = new Agent({
+  name: "Protected",
+  model: google("gemini-2.5-flash"),
+  instructions: "You are a helpful assistant.",
+  outputGuardrails: [
+    piiGuardrail({ entities: ["US_SSN", "CREDIT_CARD", "EMAIL"] }),
+    secretKeyGuardrail({ sensitivity: "balanced" }),
+    urlGuardrail({ allowedDomains: ["example.com"] }),
+  ],
+});
+```
+
+### Available Presets
+
+| Preset | Type | Use as | Description |
+|--------|------|--------|-------------|
+| `jailbreakGuardrail` | LLM | Input | Detects prompt manipulation, role-playing exploits, encoding tricks |
+| `moderationGuardrail` | LLM | Input / Output | Content safety (hate, violence, sexual, self-harm, harassment, illegal) |
+| `nsfwGuardrail` | LLM | Output | Explicit sexual content, graphic violence, gore |
+| `promptInjectionGuardrail` | LLM | Input | Injected directives, instruction overrides, persona hijacking |
+| `topicGuardrail` | LLM | Input | Off-topic content outside a defined scope |
+| `piiGuardrail` | Pattern | Input / Output | SSN, email, credit card, phone, passport, IBAN, and more |
+| `secretKeyGuardrail` | Pattern | Output | API keys, tokens via known prefixes + entropy analysis |
+| `urlGuardrail` | Pattern | Output | URL detection, scheme validation, domain allow/blocklist |
+
 ## Guardrail Result
 
 Every guardrail's `execute` function returns a `GuardrailResult`:
