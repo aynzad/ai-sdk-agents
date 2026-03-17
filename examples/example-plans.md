@@ -55,7 +55,7 @@ Example folders are numbered to match their order in this document:
 ```
 examples/01-hello-world/
 examples/02-agent-with-tools/
-examples/20-nextjs-chat/
+examples/21-nextjs-chat/
 ```
 
 ### Console Example Structure
@@ -739,9 +739,11 @@ test("tool call shows approval dialog and executes on approve", async ({
 | 17  | `17-tracing`                  | Vitest     | Trace spans are recorded for agent, tool, and handoff    |
 | 18  | `18-customer-service-bot`     | Vitest     | Triage routes correctly, tools execute, multi-turn works |
 | 19  | `19-research-bot`             | Vitest     | Planner, searcher, writer execute in correct sequence    |
-| 20  | `20-nextjs-chat`              | Playwright | Chat input sends message, streamed response renders      |
-| 21  | `21-nextjs-multi-agent`       | Playwright | Handoff events show agent switch in UI                   |
-| 22  | `22-nextjs-human-in-the-loop` | Playwright | Approval dialog appears, approve/reject flow works       |
+| 20  | `20-guardrail-presets`        | Vitest     | Model-agnostic guardrails trip on jailbreak/PII, pass on safe |
+| 21  | `21-nextjs-chat`              | Playwright | Chat input sends message, streamed response renders      |
+| 22  | `22-nextjs-multi-agent`       | Playwright | Handoff events show agent switch in UI                   |
+| 23  | `23-nextjs-human-in-the-loop` | Playwright | Approval dialog appears, approve/reject flow works       |
+| 24  | `24-nextjs-guardrails`        | Playwright | Guardrails UI with blocked/allowed message indicators    |
 
 ---
 
@@ -953,7 +955,7 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ### 13. keyword-guardrail -- DONE
 
-**Inspired by:** New example (not in openai-agents-js) -- showcases ai-sdk-agents built-in guardrail helpers
+**Inspired by:** New example (not in openai-agents-js) — showcases ai-sdk-agents built-in guardrail helpers
 
 **Goal:** Demonstrate the built-in guardrail helper functions for common validation patterns.
 
@@ -1074,11 +1076,30 @@ test("tool call shows approval dialog and executes on approve", async ({
 
 ---
 
+### 20. guardrail-presets -- DONE
+
+**Inspired by:** [OpenAI Guardrails](https://guardrails.openai.com/) approach — model-agnostic reimplementation
+
+**Goal:** Demonstrate model-agnostic guardrail presets (jailbreak detection, content moderation, PII filtering) with any AI SDK provider.
+
+**Description:** Creates an agent with guardrail presets for both input and output safety. Input guardrails use LLM-based presets (jailbreak detection, content moderation) that work with any AI SDK model. Output guardrails use pattern-based PII detection (regex, no model needed). Shows both passing and blocked scenarios with chalk-formatted output.
+
+**Key Features:**
+
+- `jailbreakGuardrail({ model })` — LLM-based jailbreak detection
+- `moderationGuardrail({ model, categories })` — LLM-based content moderation
+- `piiGuardrail({ entities })` — regex-based PII detection (SSN, credit card, email, phone)
+- `GuardrailTripwiredError` handling
+- Model-agnostic: uses Google Gemini but works with any provider
+- No external dependencies beyond AI SDK
+
+---
+
 ## Next.js Examples
 
 > **Skills:** When implementing these examples, follow the `/ai-elements`, `/ai-sdk`, and `/playwright-best-practices` Cursor agent skills for up-to-date APIs and best practices.
 
-### 20. nextjs-chat
+### 21. nextjs-chat
 
 **Inspired by:** openai-agents-js `ai-sdk-ui/` and `nextjs/`
 
@@ -1110,7 +1131,7 @@ pnpm dlx shadcn@latest add @ai-elements/message
 
 ---
 
-### 21. nextjs-multi-agent
+### 22. nextjs-multi-agent
 
 **Inspired by:** openai-agents-js `customer-service/` + `handoffs/`
 
@@ -1141,7 +1162,7 @@ pnpm dlx shadcn@latest add @ai-elements/message
 
 ---
 
-### 22. nextjs-human-in-the-loop
+### 23. nextjs-human-in-the-loop
 
 **Inspired by:** openai-agents-js `nextjs/` HITL
 
@@ -1356,9 +1377,10 @@ jobs:
       fail-fast: false
       matrix:
         example:
-          - 20-nextjs-chat
-          - 21-nextjs-multi-agent
-          - 22-nextjs-human-in-the-loop
+          - 21-nextjs-chat
+          - 22-nextjs-multi-agent
+          - 23-nextjs-human-in-the-loop
+          - 24-nextjs-guardrails
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -1425,7 +1447,7 @@ packages:
 4. ~~**Refactor existing library tests** to use the new shared helpers~~ **DONE**
 5. ~~**Run existing tests** to verify nothing breaks (316 tests pass)~~ **DONE**
 6. ~~**Update `pnpm-workspace.yaml`** to include `examples/*`~~ **DONE**
-7. ~~**Build console examples** (02-19) -- each as `examples/<##-name>/` with `src/index.ts`, `src/index.test.ts`, README, .env.example~~ **ALL DONE (01-19)**
-8. **Build Next.js examples** (20-22) -- each as `examples/<##-name>/` with Playwright E2E tests
+7. ~~**Build console examples** (01-20) -- each as `examples/<##-name>/` with `src/index.ts`, `src/index.test.ts`, README, .env.example~~ **ALL DONE (01-20)**
+8. **Build Next.js examples** (21-24) -- each as `examples/<##-name>/` with Playwright E2E tests
 9. **Create `.github/workflows/ci.yml`** -- library lint, format, type-check, tests
 10. **Create `.github/workflows/ci-examples.yml`** -- auto-discover and test all examples
