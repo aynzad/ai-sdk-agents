@@ -1166,7 +1166,56 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.19.15)(lightningcss@1.32.0)
 
-  examples/20-nextjs-chat:
+  examples/20-guardrail-presets:
+    dependencies:
+      '@ai-sdk/google':
+        specifier: ^3.0.0
+        version: 3.0.43(zod@4.3.6)
+      ai:
+        specifier: ^6.0.0
+        version: 6.0.116(zod@4.3.6)
+      ai-sdk-agents:
+        specifier: workspace:*
+        version: link:../..
+      chalk:
+        specifier: ^5.4.0
+        version: 5.6.2
+      zod:
+        specifier: ^4.1.8
+        version: 4.3.6
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.4
+        version: 9.39.4
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^9.0.0
+        version: 9.1.2(eslint@9.39.4(jiti@2.6.1))
+      globals:
+        specifier: ^17.4.0
+        version: 17.4.0
+      prettier:
+        specifier: ^3.4.0
+        version: 3.8.1
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.8.2
+      typescript-eslint:
+        specifier: ^8.57.0
+        version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.19.15)(lightningcss@1.32.0)
+
+  examples/21-nextjs-chat:
     dependencies:
       '@ai-sdk/google':
         specifier: ^3.0.0
@@ -1248,7 +1297,7 @@ importers:
         specifier: ^8.57.0
         version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
 
-  examples/21-nextjs-multi-agent:
+  examples/22-nextjs-multi-agent:
     dependencies:
       '@ai-sdk/google':
         specifier: ^3.0.0
@@ -1327,7 +1376,7 @@ importers:
         specifier: ^8.57.0
         version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
 
-  examples/22-nextjs-human-in-the-loop:
+  examples/23-nextjs-human-in-the-loop:
     dependencies:
       '@ai-sdk/google':
         specifier: ^3.0.0
@@ -1406,7 +1455,7 @@ importers:
         specifier: ^8.57.0
         version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
 
-  examples/23-nextjs-guardrails:
+  examples/24-nextjs-guardrails:
     dependencies:
       '@ai-sdk/google':
         specifier: ^3.0.0
@@ -1460,6 +1509,9 @@ importers:
       eslint:
         specifier: ^9.0.0
         version: 9.39.4(jiti@2.6.1)
+      eslint-config-next:
+        specifier: ^16.0.0
+        version: 16.1.6(@typescript-eslint/parser@8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.4(jiti@2.6.1))(typescript@5.8.2)
       eslint-config-prettier:
         specifier: ^9.0.0
         version: 9.1.2(eslint@9.39.4(jiti@2.6.1))

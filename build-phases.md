@@ -146,7 +146,7 @@ Guardrails validate inputs and outputs with tripwire-based halting. When any gua
    - `maxLengthGuardrail({ maxLength })` — trips if any message content string exceeds `maxLength` characters. Boundary (exactly at limit) does not trip.
    - `regexGuardrail({ pattern, reason? })` — trips if regex matches any message content string. Uses custom reason if provided, otherwise generates a default reason mentioning the pattern.
 
-5. **`extractTextContent(messages)` (internal)** — helper that extracts string content from `ModelMessage[]`, handling both `string` content and `ContentPart[]` arrays (extracting `type: 'text'` parts). Used by all built-in guardrails.
+5. **`extractTextContent(messages)` (exported)** — helper that extracts string content from `ModelMessage[]`, handling both `string` content and `ContentPart[]` arrays (extracting `type: 'text'` parts). Used by all built-in guardrails and by `openai-guardrail.ts`. Originally internal, made public in Phase 10.
 
 **Three guardrail scopes (enforced by Runner, not by guardrail module):**
 
@@ -175,7 +175,7 @@ Guardrails validate inputs and outputs with tripwire-based halting. When any gua
 
 **Coverage:** 100% stmts, 100% branches, 100% funcs, 100% lines.
 
-**Verify:** Module imports only from `@/types` and `ai` (lazy). No internal cross-module imports.
+**Verify:** Module imports only from `@/types` and `ai` (lazy). No internal cross-module imports. Note: `extractTextContent` was later made public (Phase 10) for use by `openai-guardrail.ts`.
 
 ---
 
@@ -705,7 +705,7 @@ The public API. Every export from this file is part of the library's contract. I
 
 2. **Missing export added** — `LlmGuardrailConfig` type was exported from `guardrail/guardrail.ts` but missing from the barrel. Added for TypeScript consumers building custom LLM guardrails.
 
-**Public API surface (19 runtime exports + 28 type exports):**
+**Public API surface (20 runtime exports + 31 type exports):**
 
 ```typescript
 // Agent
@@ -723,6 +723,14 @@ export {
   regexGuardrail,
 } from "./guardrail/guardrail";
 export type { LlmGuardrailConfig } from "./guardrail/guardrail";
+
+// OpenAI Guardrails
+export { openaiGuardrails } from "./guardrail/openai-guardrail";
+export type {
+  OpenAIGuardrailConfig,
+  OpenAIGuardrailBundle,
+  OpenAIGuardrailsOptions,
+} from "./guardrail/openai-guardrail";
 
 // Runner
 export { Runner } from "./runner/runner";
@@ -782,7 +790,7 @@ export {
 - `handoffToTool` — used only by Runner to convert handoffs to AI SDK tools
 - `isHandoffResult` — used only by Runner to detect handoff sentinels
 - `runGuardrails` — used only by Runner to execute guardrail arrays
-- `extractTextContent` — internal helper for built-in guardrails
+- `extractTextContent` — exported from `guardrail.ts` for use by `openai-guardrail.ts`, but not re-exported from barrel
 
 **Key design decisions:**
 
@@ -799,7 +807,7 @@ export {
 - `dist/ai-sdk-agents.cjs` — CJS bundle (22.15 kB, gzip 5.77 kB)
 - `dist/index.d.ts` — Bundled declaration file with all public types including `LlmGuardrailConfig`
 
-**Verify:** All 239 tests pass. Build produces dual CJS/ESM bundles. `LlmGuardrailConfig` present in `dist/index.d.ts`.
+**Verify:** All tests pass. Build produces dual CJS/ESM bundles. `LlmGuardrailConfig` and `OpenAIGuardrailConfig` present in `dist/index.d.ts`.
 
 ---
 
@@ -1069,6 +1077,97 @@ export type {
 - `dist/ai-sdk-agents.cjs` — CJS bundle (36.60 kB, gzip 7.34 kB)
 
 **Verify:** All 333 tests pass. Build produces dual CJS/ESM bundles. All new exports present in `dist/index.d.ts`.
+
+---
+
+### Phase 10: OpenAI Guardrails Integration → Model-Agnostic Guardrail Presets
+
+**Status:** ⚠️ Superseded — OpenAI-specific integration (`openaiGuardrails`, `@openai/guardrails`) has been replaced with model-agnostic guardrail presets in `src/guardrail/presets/`. The presets work with any AI SDK model and require no OpenAI-specific dependencies. See Phase 10b below for the replacement.
+
+**Original file:** `src/guardrail/openai-guardrail.ts` (deleted)
+**Depends on:** `types.ts`, `guardrail/guardrail.ts` (for `extractTextContent`)
+**Original status:** ✅ Complete (now removed)
+
+Wraps [OpenAI's Guardrails](https://guardrails.openai.com/) (`@openai/guardrails` package) to plug their pre-built safety checks (Moderation, PII detection, Jailbreak, NSFW, and more) directly into ai-sdk-agents as standard `Guardrail<TContext>` objects. The package is an **optional peer dependency** — users only install it if they want OpenAI guardrails.
+
+**What was implemented:**
+
+1. **`openaiGuardrails(options)`** — factory function that creates a standard `Guardrail<TContext>` wrapping the `@openai/guardrails` SDK. Accepts:
+   - `bundle` — `OpenAIGuardrailBundle` with an array of `OpenAIGuardrailConfig` objects (name + config)
+   - `context?` — passed through to `runGuardrails` (must include `guardrailLlm` for LLM-based checks like Jailbreak)
+   - `name?` — custom guardrail name (default: `"openai-guardrails"`)
+
+   The execute function:
+   - Extracts text content from messages using the now-public `extractTextContent` helper
+   - Joins all text with newlines and passes it to `@openai/guardrails`'s `runGuardrails()`
+   - Returns `{ tripwired: false }` for empty text (no messages to check)
+   - On any triggered guardrail: returns `{ tripwired: true, reason, metadata }` with details about all triggered guardrails
+   - On error (API failure, import failure): trips for safety-first behavior
+
+2. **Structural types** — `OpenAIGuardrailConfig`, `OpenAIGuardrailBundle`, `OpenAIGuardrailsOptions` are defined structurally (no runtime import of `@openai/guardrails` at module level). The actual import is lazy via `await import("@openai/guardrails")` inside `execute`.
+
+3. **`extractTextContent` made public** — previously internal to `guardrail.ts`, now exported so `openai-guardrail.ts` can reuse it without duplication.
+
+**Key design decisions:**
+
+- **Optional peer dependency** — `@openai/guardrails` is listed in `peerDependenciesMeta` as `optional: true`. Users who don't need OpenAI guardrails don't install it. The lazy `import()` ensures no runtime error if the package isn't installed (until the guardrail actually executes).
+- **Structural typing** — `OpenAIGuardrailConfig`, `OpenAIGuardrailBundle`, and internal result types are defined locally rather than importing from `@openai/guardrails`. This avoids compile-time dependency on an optional package.
+- **Standard `Guardrail<TContext>` output** — the factory returns the same `Guardrail` interface used everywhere in the library, so OpenAI guardrails can be mixed freely with `keywordGuardrail`, `llmGuardrail`, custom guardrails, etc.
+- **Safety-first on error** — any thrown error (import failure, API error) results in `tripwired: true` with the error message in the reason.
+- **Multi-guardrail reporting** — when multiple guardrails trigger, all names are listed in the `reason` string and full details are in `metadata.triggeredGuardrails`.
+
+**Changes to existing files:**
+
+| File | Change |
+|------|--------|
+| `src/guardrail/guardrail.ts` | `extractTextContent` changed from private to `export function` |
+| `src/index.ts` | Added `openaiGuardrails` runtime export + `OpenAIGuardrailConfig`, `OpenAIGuardrailBundle`, `OpenAIGuardrailsOptions` type exports |
+| `package.json` | Added `@openai/guardrails` as optional peer dep (`>=0.2.0`) and dev dep (`^0.2.1`) |
+| `vite.config.ts` | Added `@openai/guardrails` to Rollup externals |
+
+**Test coverage (13 tests):**
+
+- Factory: default name, custom name, invalid bundle throws (3 tests)
+- Execution: all pass, single trigger, metadata details, mixed results, multiple triggered names in reason (5 tests)
+- Safety: API error trips, empty messages skip (2 tests)
+- Data flow: bundle + context passthrough, multi-message join, ContentPart array messages (3 tests)
+
+**Coverage:** 100% stmts, 100% branches, 100% funcs, 100% lines.
+
+**Verify:** Module imports only from `@/types` and `./guardrail` (for `extractTextContent`). `@openai/guardrails` is lazy-imported at runtime.
+
+---
+
+### Phase 10b: Model-Agnostic Guardrail Presets
+
+**Files:** `src/guardrail/presets/*.ts`
+**Depends on:** `types.ts`, `guardrail/guardrail.ts` (for `llmGuardrail`, `extractTextContent`)
+**Status:** ✅ Complete
+
+Replaced the OpenAI-specific `openaiGuardrails()` integration with 8 model-agnostic guardrail presets. Prompt design inspired by OpenAI's guardrails approach (https://guardrails.openai.com/). All prompts are independently authored.
+
+**LLM-based presets** (wrap `llmGuardrail` internally, work with any AI SDK model):
+- `jailbreakGuardrail({ model })` — detects prompt manipulation, role-playing, encoding tricks
+- `moderationGuardrail({ model, categories? })` — content safety classification
+- `nsfwGuardrail({ model })` — explicit/adult content detection
+- `promptInjectionGuardrail({ model })` — injected directives, instruction overrides
+- `topicGuardrail({ model, allowedTopics })` — off-topic content detection
+
+**Pattern-based presets** (regex, no model needed):
+- `piiGuardrail({ entities? })` — SSN, email, credit card, phone, passport, IBAN, etc.
+- `secretKeyGuardrail({ sensitivity? })` — API keys via known prefixes + Shannon entropy
+- `urlGuardrail({ allowedDomains?, blockedDomains?, allowedSchemes?, blockUserInfo? })` — URL detection and validation
+
+**Changes:**
+| File | Change |
+|------|--------|
+| `src/guardrail/openai-guardrail.ts` | Deleted |
+| `src/guardrail/openai-guardrail.test.ts` | Deleted |
+| `src/guardrail/presets/*.ts` | 8 new preset files + 8 test files |
+| `src/index.ts` | Removed OpenAI exports, added preset exports |
+| `package.json` | Removed `@openai/guardrails` from peer deps and dev deps |
+| `vite.config.ts` | Removed `@openai/guardrails` from Rollup externals |
+| `examples/20-openai-guardrails/` | Renamed to `examples/20-guardrail-presets/`, fully rewritten |
 
 ---
 

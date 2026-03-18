@@ -55,6 +55,38 @@ export {
 
 export type { LlmGuardrailConfig } from "./guardrail/guardrail";
 
+// Guardrail presets — pattern-based
+export { piiGuardrail } from "./guardrail/presets/pii-guardrail";
+export type {
+  PiiGuardrailConfig,
+  PiiEntity,
+} from "./guardrail/presets/pii-guardrail";
+
+export { secretKeyGuardrail } from "./guardrail/presets/secret-key-guardrail";
+export type { SecretKeyGuardrailConfig } from "./guardrail/presets/secret-key-guardrail";
+
+export { urlGuardrail } from "./guardrail/presets/url-guardrail";
+export type { UrlGuardrailConfig } from "./guardrail/presets/url-guardrail";
+
+// Guardrail presets — LLM-based
+export { jailbreakGuardrail } from "./guardrail/presets/jailbreak-guardrail";
+export type { JailbreakGuardrailConfig } from "./guardrail/presets/jailbreak-guardrail";
+
+export { moderationGuardrail } from "./guardrail/presets/moderation-guardrail";
+export type {
+  ModerationGuardrailConfig,
+  ModerationCategory,
+} from "./guardrail/presets/moderation-guardrail";
+
+export { nsfwGuardrail } from "./guardrail/presets/nsfw-guardrail";
+export type { NsfwGuardrailConfig } from "./guardrail/presets/nsfw-guardrail";
+
+export { promptInjectionGuardrail } from "./guardrail/presets/prompt-injection-guardrail";
+export type { PromptInjectionGuardrailConfig } from "./guardrail/presets/prompt-injection-guardrail";
+
+export { topicGuardrail } from "./guardrail/presets/topic-guardrail";
+export type { TopicGuardrailConfig } from "./guardrail/presets/topic-guardrail";
+
 export {
   defineToolInputGuardrail,
   defineToolOutputGuardrail,

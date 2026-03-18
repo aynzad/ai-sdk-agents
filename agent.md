@@ -22,7 +22,7 @@ A thin (~2000 lines of source), zero-runtime-dependency TypeScript library that 
 2. **Zero runtime dependencies.** Only `ai` and `zod` as peer deps. Nothing else ships.
 3. **Type-safe by default.** Generic context types flow through agents, tools, guardrails, and hooks.
 4. **Eject cleanly.** If a user outgrows this library, they can replace any piece with raw AI SDK calls.
-5. **Small API surface.** Core exports: `Agent`, `Runner`, `Trace` (classes), `handoff`/`handoffFilters` (handoffs), `guardrail`/`llmGuardrail`/`keywordGuardrail`/`maxLengthGuardrail`/`regexGuardrail` (guardrails), `guardedTool`/`defineToolInputGuardrail`/`defineToolOutputGuardrail` (tool guardrails), `trace`/`addTraceProcessor`/`consoleTraceProcessor`/`memoryTraceProcessor` (tracing), plus 4 error classes and re-exported AI SDK types.
+5. **Small API surface.** Core exports: `Agent`, `Runner`, `Trace` (classes), `handoff`/`handoffFilters` (handoffs), `guardrail`/`llmGuardrail`/`keywordGuardrail`/`maxLengthGuardrail`/`regexGuardrail` (guardrails), `jailbreakGuardrail`/`moderationGuardrail`/`nsfwGuardrail`/`promptInjectionGuardrail`/`topicGuardrail`/`piiGuardrail`/`secretKeyGuardrail`/`urlGuardrail` (guardrail presets), `guardedTool`/`defineToolInputGuardrail`/`defineToolOutputGuardrail` (tool guardrails), `trace`/`addTraceProcessor`/`consoleTraceProcessor`/`memoryTraceProcessor` (tracing), plus 4 error classes and re-exported AI SDK types.
 
 ---
 
@@ -66,7 +66,7 @@ This is a pnpm workspace monorepo with 24 packages:
 pnpm-workspace.yaml
 ├── "."              # Root — the ai-sdk-agents library
 ├── "docs"           # Astro Starlight documentation site
-└── "examples/*"     # 22 runnable example projects (01 through 22)
+└── "examples/*"     # 24 runnable example projects (01 through 24)
 ```
 
 ---
@@ -163,7 +163,16 @@ ai-sdk-agents/
 │   │   └── handoff.ts            # handoff(), handoffToTool(), handoffFilters, helpers
 │   ├── guardrail/
 │   │   ├── guardrail.ts          # guardrail(), llmGuardrail(), built-ins
-│   │   └── tool-guardrail.ts     # guardedTool(), defineToolInput/OutputGuardrail()
+│   │   ├── tool-guardrail.ts     # guardedTool(), defineToolInput/OutputGuardrail()
+│   │   └── presets/              # Model-agnostic guardrail presets
+│   │       ├── jailbreak-guardrail.ts
+│   │       ├── moderation-guardrail.ts
+│   │       ├── nsfw-guardrail.ts
+│   │       ├── prompt-injection-guardrail.ts
+│   │       ├── topic-guardrail.ts
+│   │       ├── pii-guardrail.ts
+│   │       ├── secret-key-guardrail.ts
+│   │       └── url-guardrail.ts
 │   ├── runner/
 │   │   └── runner.ts             # Runner.run(), Runner.stream() — the orchestration
 │   ├── tracing/
@@ -171,7 +180,7 @@ ai-sdk-agents/
 │   └── test/
 │       └── index.ts              # Test helpers (exported via "ai-sdk-agents/test" sub-path)
 │
-├── examples/                     # 22 runnable example projects (workspace packages)
+├── examples/                     # 24 runnable example projects (workspace packages)
 │   ├── 01-hello-world/           # Minimal agent: name + model + instructions
 │   ├── 02-agent-with-tools/      # Agent with tools (weather, timezone)
 │   ├── 03-streaming/             # Real-time streaming with Runner.stream()
@@ -191,9 +200,11 @@ ai-sdk-agents/
 │   ├── 17-tracing/               # consoleTraceProcessor & memoryTraceProcessor
 │   ├── 18-customer-service-bot/  # Multi-agent interactive customer service
 │   ├── 19-research-bot/          # Parallel research pipeline
-│   ├── 20-nextjs-chat/           # Next.js basic chat UI
-│   ├── 21-nextjs-multi-agent/    # Next.js multi-agent chat with tools
-│   ├── 22-nextjs-human-in-the-loop/ # Next.js tool approval flow
+│   ├── 20-guardrail-presets/     # Model-agnostic guardrail presets
+│   ├── 21-nextjs-chat/           # Next.js basic chat UI
+│   ├── 22-nextjs-multi-agent/    # Next.js multi-agent chat with tools
+│   ├── 23-nextjs-human-in-the-loop/ # Next.js tool approval flow
+│   ├── 24-nextjs-guardrails/     # Next.js guardrails UI
 │   └── example-plans.md          # Plans and implementation notes
 │
 ├── docs/                         # Astro Starlight documentation site (workspace package)

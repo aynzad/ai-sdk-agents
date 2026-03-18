@@ -5,12 +5,13 @@ import type {
   RunContext,
 } from "@/types";
 import type { LanguageModel, ModelMessage } from "ai";
+import { generateText } from "ai";
 
 // ---------------------------------------------------------------------------
 // Content extraction helper
 // ---------------------------------------------------------------------------
 
-function extractTextContent(messages: ModelMessage[]): string[] {
+export function extractTextContent(messages: ModelMessage[]): string[] {
   const texts: string[] = [];
   for (const msg of messages) {
     if (typeof msg.content === "string") {
@@ -65,7 +66,6 @@ export function llmGuardrail<TContext = unknown>(
     execute: async (ctx, input) => {
       try {
         const prompt = config.promptBuilder(ctx, input);
-        const { generateText } = await import("ai");
         const result = await generateText({
           model: config.model,
           prompt,

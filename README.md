@@ -56,7 +56,7 @@ console.log(result.output);
 
 ## Examples
 
-22 runnable examples covering every feature:
+24 runnable examples covering every feature:
 
 | # | Example | Feature |
 |---|---------|---------|
@@ -79,9 +79,11 @@ console.log(result.output);
 | 17 | [Tracing](./examples/17-tracing/) | Trace processors |
 | 18 | [Customer Service Bot](./examples/18-customer-service-bot/) | Multi-agent interactive bot |
 | 19 | [Research Bot](./examples/19-research-bot/) | Parallel research pipeline |
-| 20 | [Next.js Chat](./examples/20-nextjs-chat/) | Next.js chat UI |
-| 21 | [Next.js Multi-Agent](./examples/21-nextjs-multi-agent/) | Next.js multi-agent chat |
-| 22 | [Next.js Human-in-the-Loop](./examples/22-nextjs-human-in-the-loop/) | Client-side tools with Runner.streamUI() |
+| 20 | [Guardrail Presets](./examples/20-guardrail-presets/) | Model-agnostic guardrail presets (jailbreak, PII, moderation) |
+| 21 | [Next.js Chat](./examples/21-nextjs-chat/) | Next.js chat UI |
+| 22 | [Next.js Multi-Agent](./examples/22-nextjs-multi-agent/) | Next.js multi-agent chat |
+| 23 | [Next.js Human-in-the-Loop](./examples/23-nextjs-human-in-the-loop/) | Client-side tools with Runner.streamUI() |
+| 24 | [Next.js Guardrails](./examples/24-nextjs-guardrails/) | Next.js guardrails UI |
 
 ## Local Setup
 
