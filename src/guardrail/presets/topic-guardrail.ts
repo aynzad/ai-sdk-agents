@@ -1,7 +1,7 @@
 // Guardrail prompt design inspired by OpenAI's guardrails approach
 // (https://guardrails.openai.com/). All prompts are independently authored.
 
-import type { Guardrail } from "@/types";
+import type { Guardrail } from "@/guardrail/types";
 import type { LanguageModel } from "ai";
 import { llmGuardrail } from "../guardrail";
 import { extractTextContent } from "../guardrail";

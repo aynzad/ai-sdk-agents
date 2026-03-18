@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type { LanguageModel } from "ai";
-import type { RunContext, GuardrailInput, TraceProcessor } from "../types";
+import type { RunContext, TraceProcessor } from "../types";
+import type { GuardrailInput } from "../guardrail/types";
 
 export function createMockModel(): LanguageModel {
   return {

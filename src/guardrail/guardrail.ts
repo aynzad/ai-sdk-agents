@@ -1,9 +1,9 @@
+import type { RunContext } from "@/types";
 import type {
   Guardrail,
   GuardrailInput,
   GuardrailResult,
-  RunContext,
-} from "@/types";
+} from "@/guardrail/types";
 import type { LanguageModel, ModelMessage } from "ai";
 import { generateText } from "ai";
 
