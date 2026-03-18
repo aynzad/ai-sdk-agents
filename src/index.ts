@@ -5,11 +5,11 @@ export type {
   AgentInstance,
 } from "./agent/types";
 
+export type { HandoffConfig, HandoffTarget } from "./handoff/types";
+
 export type {
   RunContext,
   ModelSettings,
-  HandoffConfig,
-  HandoffTarget,
   TraceSpan,
   TraceProcessor,
   TracingConfig,
@@ -42,7 +42,8 @@ export {
   GuardrailTripwiredError,
   ToolGuardrailTripwiredError,
 } from "./guardrail/types";
-export { MaxTurnsExceededError, HandoffError } from "./types";
+export { MaxTurnsExceededError } from "./types";
+export { HandoffError } from "./handoff/types";
 
 export type { UIMessage } from "ai";
 

@@ -6,7 +6,6 @@ import type {
   ToolSet,
   LanguageModelUsage,
 } from "ai";
-import type { AgentInstance } from "@/agent/types";
 import type { GuardrailResult } from "@/guardrail/types";
 
 // ---------------------------------------------------------------------------
@@ -31,22 +30,6 @@ export interface RunContext<TContext = unknown> {
  * maxOutputTokens, topP, seed, retries, timeout, etc. at the agent level.
  */
 export type ModelSettings = CallSettings;
-
-// ---------------------------------------------------------------------------
-// Handoffs
-// ---------------------------------------------------------------------------
-
-export interface HandoffConfig<TContext = unknown> {
-  agent: AgentInstance<TContext, unknown>;
-  toolName?: string;
-  toolDescription?: string;
-  onHandoff?: (ctx: RunContext<TContext>) => void | Promise<void>;
-  inputFilter?: (messages: ModelMessage[]) => ModelMessage[];
-}
-
-export type HandoffTarget<TContext = unknown> =
-  | AgentInstance<TContext, unknown>
-  | HandoffConfig<TContext>;
 
 // ---------------------------------------------------------------------------
 // Tracing
@@ -164,18 +147,6 @@ export class MaxTurnsExceededError extends Error {
     super(`Maximum turns (${maxTurns}) exceeded`);
     this.name = "MaxTurnsExceededError";
     this.maxTurns = maxTurns;
-  }
-}
-
-export class HandoffError extends Error {
-  readonly fromAgent: string;
-  readonly toAgent: string;
-
-  constructor(fromAgent: string, toAgent: string, detail: string) {
-    super(`Handoff from "${fromAgent}" to "${toAgent}" failed: ${detail}`);
-    this.name = "HandoffError";
-    this.fromAgent = fromAgent;
-    this.toAgent = toAgent;
   }
 }
 

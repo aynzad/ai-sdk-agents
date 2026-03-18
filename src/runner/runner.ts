@@ -8,8 +8,8 @@ import {
 import type { LanguageModel, ModelMessage, ToolSet, UIMessage } from "ai";
 
 import type { AgentInstance } from "@/agent/types";
+import type { HandoffConfig } from "@/handoff/types";
 import type {
-  HandoffConfig,
   RunConfig,
   RunContext,
   RunResult,
