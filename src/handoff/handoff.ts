@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Tool, ModelMessage } from "ai";
-import type { AgentInstance, HandoffConfig, HandoffTarget } from "@/types";
+import type { AgentInstance } from "@/agent/types";
+import type { HandoffConfig, HandoffTarget } from "@/types";
 
 function isAgentInstance(
   target: HandoffTarget,

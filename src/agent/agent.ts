@@ -1,11 +1,7 @@
 import { z } from "zod";
 import type { Tool } from "ai";
-import type {
-  AgentConfig,
-  AgentInstance,
-  AsToolOptions,
-  RunContext,
-} from "@/types";
+import type { RunContext } from "@/types";
+import type { AgentConfig, AgentInstance, AsToolOptions } from "@/agent/types";
 import { Runner } from "@/runner/runner";
 
 const DEFAULT_MAX_TOOL_ROUNDTRIPS = 10;
