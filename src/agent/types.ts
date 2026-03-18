@@ -1,6 +1,7 @@
 import type { LanguageModel, Tool, ToolSet } from "ai";
 import type { z } from "zod";
-import type { RunContext, ModelSettings, HandoffTarget } from "@/types";
+import type { RunContext, ModelSettings } from "@/types";
+import type { HandoffTarget } from "@/handoff/types";
 import type { Guardrail } from "@/guardrail/types";
 
 // ---------------------------------------------------------------------------

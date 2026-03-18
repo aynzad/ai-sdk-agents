@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { ModelMessage } from "ai";
-import type { HandoffConfig } from "@/types";
+import type { HandoffConfig } from "@/handoff/types";
 import { Agent } from "@/agent/agent";
 import {
   handoff,
