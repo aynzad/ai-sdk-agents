@@ -1,4 +1,4 @@
-import type { TraceSpan, TraceProcessor } from "@/types";
+import type { TraceSpan, TraceProcessor } from "@/tracing/types";
 
 // ---------------------------------------------------------------------------
 // ID generation
