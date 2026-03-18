@@ -1,7 +1,7 @@
 // Guardrail design inspired by OpenAI's guardrails approach
 // (https://guardrails.openai.com/). All patterns are independently authored.
 
-import type { Guardrail } from "@/types";
+import type { Guardrail } from "@/guardrail/types";
 import { extractTextContent } from "../guardrail";
 
 export interface UrlGuardrailConfig {

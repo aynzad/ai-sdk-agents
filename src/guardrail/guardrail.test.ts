@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { LanguageModel, ModelMessage } from "ai";
 import type * as AiModule from "ai";
-import type { Guardrail } from "@/types";
+import type { Guardrail } from "@/guardrail/types";
 import {
   guardrail,
   llmGuardrail,

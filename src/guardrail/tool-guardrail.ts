@@ -1,14 +1,14 @@
 import type { Tool, ToolExecutionOptions } from "ai";
 import type { z, ZodTypeAny } from "zod";
+import type { RunContext } from "@/types";
 import type {
-  RunContext,
   ToolGuardrailBehavior,
   ToolInputGuardrail,
   ToolInputGuardrailData,
   ToolOutputGuardrail,
   ToolOutputGuardrailData,
-} from "@/types";
-import { ToolGuardrailTripwiredError } from "@/types";
+} from "@/guardrail/types";
+import { ToolGuardrailTripwiredError } from "@/guardrail/types";
 
 // ---------------------------------------------------------------------------
 // ToolGuardrailBehaviorFactory

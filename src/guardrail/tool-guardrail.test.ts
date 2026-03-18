@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import type { ToolInputGuardrail, ToolOutputGuardrail } from "@/types";
-import { ToolGuardrailTripwiredError } from "@/types";
+import type {
+  ToolInputGuardrail,
+  ToolOutputGuardrail,
+} from "@/guardrail/types";
+import { ToolGuardrailTripwiredError } from "@/guardrail/types";
 import {
   ToolGuardrailBehaviorFactory,
   defineToolInputGuardrail,

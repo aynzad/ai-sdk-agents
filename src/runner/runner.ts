@@ -17,11 +17,11 @@ import type {
   StreamResult,
   StreamEvent,
 } from "@/types";
+import { MaxTurnsExceededError } from "@/types";
 import {
-  MaxTurnsExceededError,
   GuardrailTripwiredError,
   ToolGuardrailTripwiredError,
-} from "@/types";
+} from "@/guardrail/types";
 import { handoffToTool, isHandoffResult } from "@/handoff/handoff";
 import { runGuardrails } from "@/guardrail/guardrail";
 import {

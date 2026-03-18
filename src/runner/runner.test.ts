@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { LanguageModel } from "ai";
 import { z } from "zod";
-import type { RunContext, ModelMessage, Guardrail } from "@/types";
+import type { RunContext, ModelMessage } from "@/types";
+import { MaxTurnsExceededError } from "@/types";
+import type { Guardrail } from "@/guardrail/types";
 import {
   GuardrailTripwiredError,
-  MaxTurnsExceededError,
   ToolGuardrailTripwiredError,
-} from "@/types";
+} from "@/guardrail/types";
 import { Agent } from "@/agent/agent";
 import { handoff } from "@/handoff/handoff";
 import {

@@ -10,14 +10,6 @@ export type {
   ModelSettings,
   HandoffConfig,
   HandoffTarget,
-  GuardrailInput,
-  GuardrailResult,
-  Guardrail,
-  ToolGuardrailBehavior,
-  ToolInputGuardrailData,
-  ToolOutputGuardrailData,
-  ToolInputGuardrail,
-  ToolOutputGuardrail,
   TraceSpan,
   TraceProcessor,
   TracingConfig,
@@ -35,14 +27,24 @@ export type {
   LanguageModelUsage,
 } from "./types";
 
-export type { UIMessage } from "ai";
+export type {
+  GuardrailInput,
+  GuardrailResult,
+  Guardrail,
+  ToolGuardrailBehavior,
+  ToolInputGuardrailData,
+  ToolOutputGuardrailData,
+  ToolInputGuardrail,
+  ToolOutputGuardrail,
+} from "./guardrail/types";
 
 export {
   GuardrailTripwiredError,
-  MaxTurnsExceededError,
-  HandoffError,
   ToolGuardrailTripwiredError,
-} from "./types";
+} from "./guardrail/types";
+export { MaxTurnsExceededError, HandoffError } from "./types";
+
+export type { UIMessage } from "ai";
 
 export { Agent } from "./agent/agent";
 
