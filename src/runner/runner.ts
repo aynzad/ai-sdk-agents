@@ -7,8 +7,8 @@ import {
 } from "ai";
 import type { LanguageModel, ModelMessage, ToolSet, UIMessage } from "ai";
 
+import type { AgentInstance } from "@/agent/types";
 import type {
-  AgentInstance,
   HandoffConfig,
   RunConfig,
   RunContext,
