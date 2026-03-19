@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { LanguageModel } from "ai";
 import { z } from "zod";
 import type { RunContext, ModelMessage } from "@/types";
-import { MaxTurnsExceededError } from "@/types";
+import { MaxTurnsExceededError } from "@/runner/types";
 import type { Guardrail } from "@/guardrail/types";
 import {
   GuardrailTripwiredError,
