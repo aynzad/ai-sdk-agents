@@ -12,12 +12,6 @@ export type { TraceSpan, TraceProcessor, TracingConfig } from "./tracing/types";
 export type {
   RunContext,
   ModelSettings,
-  RunHooks,
-  RunConfig,
-  RunStep,
-  RunResult,
-  StreamEvent,
-  StreamResult,
   CallSettings,
   LanguageModel,
   ModelMessage,
@@ -25,6 +19,17 @@ export type {
   ToolSet,
   LanguageModelUsage,
 } from "./types";
+
+export type {
+  RunHooks,
+  RunConfig,
+  RunStep,
+  RunResult,
+  StreamEvent,
+  StreamResult,
+} from "./runner/types";
+
+export { MaxTurnsExceededError } from "./runner/types";
 
 export type {
   GuardrailInput,
@@ -41,7 +46,6 @@ export {
   GuardrailTripwiredError,
   ToolGuardrailTripwiredError,
 } from "./guardrail/types";
-export { MaxTurnsExceededError } from "./types";
 export { HandoffError } from "./handoff/types";
 
 export type { UIMessage } from "ai";
