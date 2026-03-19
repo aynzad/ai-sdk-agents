@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { TraceSpan } from "@/types";
+import type { TraceSpan } from "@/tracing/types";
 import {
   Trace,
   trace,

@@ -7,12 +7,11 @@ export type {
 
 export type { HandoffConfig, HandoffTarget } from "./handoff/types";
 
+export type { TraceSpan, TraceProcessor, TracingConfig } from "./tracing/types";
+
 export type {
   RunContext,
   ModelSettings,
-  TraceSpan,
-  TraceProcessor,
-  TracingConfig,
   RunHooks,
   RunConfig,
   RunStep,
